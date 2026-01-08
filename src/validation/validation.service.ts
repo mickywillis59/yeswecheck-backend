@@ -1,20 +1,23 @@
 import { Injectable } from '@nestjs/common';
 import * as dns from 'dns';
 import { promisify } from 'util';
+import { DisposableEmailService } from '../disposable-email/disposable-email.service';
+import { RoleAccountService } from '../role-account/role-account.service';
 
 const resolveMx = promisify(dns.resolveMx);
 
 @Injectable()
 export class ValidationService {
-  /**
-   * Valider la syntaxe d'un email (RFC 5322 simplifié)
-   */
+  constructor(
+    private readonly disposableEmailService: DisposableEmailService,
+    private readonly roleAccountService: RoleAccountService,
+  ) {}
+
   validateSyntax(email: string): {
     isValid: boolean;
     message: string;
     score: number;
   } {
-    // Vérifier que l'email n'est pas vide
     if (!email || email.trim() === '') {
       return {
         isValid: false,
@@ -23,7 +26,6 @@ export class ValidationService {
       };
     }
 
-    // Regex RFC 5322 simplifié
     const emailRegex = /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/;
 
     if (!emailRegex.test(email)) {
@@ -34,7 +36,6 @@ export class ValidationService {
       };
     }
 
-    // Vérifier la longueur
     if (email.length > 254) {
       return {
         isValid: false,
@@ -50,16 +51,12 @@ export class ValidationService {
     };
   }
 
-  /**
-   * Vérifier si le domaine a des enregistrements MX (DNS)
-   */
   async validateDNS(email: string): Promise<{
     isValid: boolean;
     message: string;
     score: number;
     mxRecords?: any[];
   }> {
-    // Extraire le domaine
     const domain = email.split('@')[1];
 
     if (!domain) {
@@ -71,7 +68,6 @@ export class ValidationService {
     }
 
     try {
-      // Vérifier les enregistrements MX
       const mxRecords = await resolveMx(domain);
 
       if (mxRecords && mxRecords.length > 0) {
@@ -97,9 +93,6 @@ export class ValidationService {
     }
   }
 
-  /**
-   * Validation complète d'un email
-   */
   async validateEmail(email: string): Promise<any> {
     const startTime = Date.now();
 
@@ -119,10 +112,51 @@ export class ValidationService {
       };
     }
 
-    // 2. Validation DNS
+    // 2. Vérification email jetable
+    const disposableCheck = await this.disposableEmailService.isDisposable(email);
+    
+    if (disposableCheck.isDisposable) {
+      return {
+        email,
+        isValid: false,
+        score: 0,
+        reason: 'Disposable email address detected',
+        executionTime: Date.now() - startTime,
+        details: {
+          syntax: syntaxResult,
+          disposable: {
+            ...disposableCheck,
+            message: 'This domain is identified as a temporary/disposable email provider'
+          },
+        },
+      };
+    }
+
+    // 3. Vérification compte à rôle (NOUVEAU)
+    const roleCheck = await this.roleAccountService.isRoleAccount(email);
+    
+    if (roleCheck.isRole) {
+      return {
+        email,
+        isValid: true,
+        score: 20,
+        reason: 'Role account detected',
+        executionTime: Date.now() - startTime,
+        details: {
+          syntax: syntaxResult,
+          disposable: disposableCheck,
+          roleAccount: {
+            ...roleCheck,
+            message: 'This email uses a generic role-based address (e.g., info@, contact@, admin@)'
+          },
+        },
+      };
+    }
+
+    // 4. Validation DNS
     const dnsResult = await this.validateDNS(email);
 
-    // 3. Calcul du score final
+    // 5. Calcul du score final
     const finalScore = Math.round((syntaxResult.score + dnsResult.score) / 2);
 
     return {
@@ -136,6 +170,8 @@ export class ValidationService {
       details: {
         syntax: syntaxResult,
         dns: dnsResult,
+        disposable: disposableCheck,
+        roleAccount: roleCheck,
       },
     };
   }

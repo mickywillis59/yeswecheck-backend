@@ -5,6 +5,7 @@ import { ValidationModule } from './validation/validation.module';
 import { WhitelistModule } from './whitelist/whitelist.module';
 import { BlacklistModule } from './blacklist/blacklist.module';
 import { RoleAccountModule } from './role-account/role-account.module';
+import { DisposableEmailModule } from './disposable-email/disposable-email.module';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 
@@ -19,6 +20,7 @@ import { AppService } from './app.service';
     WhitelistModule,
     BlacklistModule,
     RoleAccountModule,
+    DisposableEmailModule,
   ],
   controllers: [AppController],
   providers: [AppService],
