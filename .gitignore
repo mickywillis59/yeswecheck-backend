@@ -39,3 +39,4 @@ temp/
 
 # PM2
 ecosystem.config.js.backup
+logs/
