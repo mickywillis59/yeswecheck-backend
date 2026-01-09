@@ -1,19 +1,21 @@
 import { Module } from '@nestjs/common';
-import { ValidationController } from './validation.controller';
 import { ValidationService } from './validation.service';
+import { ValidationController } from './validation.controller';
 import { DisposableEmailModule } from '../disposable-email/disposable-email.module';
 import { RoleAccountModule } from '../role-account/role-account.module';
 import { WhitelistModule } from '../whitelist/whitelist.module';
 import { BlacklistModule } from '../blacklist/blacklist.module';
-import { ProfanityModule } from '../profanity/profanity.module';  
+import { ProfanityModule } from '../profanity/profanity.module';
+import { RandomDetectionModule } from '../random-detection/random-detection.module';
 
 @Module({
-  imports:  [
+  imports: [
     DisposableEmailModule,
     RoleAccountModule,
     WhitelistModule,
     BlacklistModule,
-    ProfanityModule,  // ⭐ NOUVEAU
+    ProfanityModule,
+    RandomDetectionModule, 
   ],
   controllers: [ValidationController],
   providers: [ValidationService],

@@ -1,0 +1,680 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>YesWeCheck API Tester</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      padding: 20px;
+    }
+
+    .container {
+      max-width: 1400px;
+      margin: 0 auto;
+      background: white;
+      border-radius: 20px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+      overflow: hidden;
+    }
+
+    .header {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 30px;
+      text-align: center;
+    }
+
+    .header h1 {
+      font-size: 2.5em;
+      margin-bottom: 10px;
+    }
+
+    .header p {
+      opacity: 0.9;
+      font-size: 1.1em;
+    }
+
+    .tabs {
+      display: flex;
+      background: #f5f5f5;
+      border-bottom: 2px solid #ddd;
+      overflow-x: auto;
+    }
+
+    .tab {
+      padding: 15px 25px;
+      cursor: pointer;
+      border: none;
+      background: transparent;
+      font-size: 1em;
+      color: #666;
+      border-bottom: 3px solid transparent;
+      transition:  all 0.3s;
+      white-space: nowrap;
+    }
+
+    .tab:hover {
+      background: #e0e0e0;
+    }
+
+    .tab.active {
+      color: #667eea;
+      border-bottom-color: #667eea;
+      background: white;
+      font-weight: bold;
+    }
+
+    .content {
+      padding: 30px;
+    }
+
+    .api-section {
+      display: none;
+    }
+
+    .api-section.active {
+      display: block;
+    }
+
+    .form-group {
+      margin-bottom: 20px;
+    }
+
+    .form-group label {
+      display: block;
+      margin-bottom: 8px;
+      font-weight: 600;
+      color: #333;
+    }
+
+    .form-group input,
+    .form-group select,
+    .form-group textarea {
+      width: 100%;
+      padding: 12px;
+      border: 2px solid #ddd;
+      border-radius: 8px;
+      font-size: 1em;
+      transition: border-color 0.3s;
+    }
+
+    .form-group input:focus,
+    .form-group select:focus,
+    .form-group textarea:focus {
+      outline: none;
+      border-color: #667eea;
+    }
+
+    .form-group textarea {
+      font-family: monospace;
+      min-height: 100px;
+      resize: vertical;
+    }
+
+    .btn {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 12px 30px;
+      border: none;
+      border-radius: 8px;
+      font-size: 1.1em;
+      cursor: pointer;
+      transition: transform 0.2s, box-shadow 0.2s;
+      font-weight: 600;
+    }
+
+    .btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+    }
+
+    .btn:active {
+      transform: translateY(0);
+    }
+
+    .btn:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    .examples {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+    }
+
+    .example-btn {
+      padding: 8px 15px;
+      background: #f0f0f0;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.9em;
+      transition: all 0.2s;
+    }
+
+    .example-btn:hover {
+      background: #e0e0e0;
+      border-color: #667eea;
+    }
+
+    .result-container {
+      margin-top: 30px;
+      display: none;
+    }
+
+    .result-container.show {
+      display: block;
+    }
+
+    .result-header {
+      display: flex;
+      justify-content: space-between;
+      align-items:  center;
+      margin-bottom:  15px;
+    }
+
+    .result-header h3 {
+      color: #333;
+    }
+
+    .status-badge {
+      padding: 6px 15px;
+      border-radius:  20px;
+      font-weight: 600;
+      font-size: 0.9em;
+    }
+
+    .status-success {
+      background: #4caf50;
+      color: white;
+    }
+
+    .status-error {
+      background: #f44336;
+      color: white;
+    }
+
+    .status-warning {
+      background: #ff9800;
+      color:  white;
+    }
+
+    .result-box {
+      background: #1e1e1e;
+      color: #d4d4d4;
+      padding: 20px;
+      border-radius: 8px;
+      overflow-x: auto;
+      font-family: 'Courier New', monospace;
+      font-size: 0.95em;
+      line-height: 1.6;
+      max-height: 600px;
+      overflow-y:  auto;
+    }
+
+    .json-key {
+      color: #9cdcfe;
+    }
+
+    .json-string {
+      color: #ce9178;
+    }
+
+    .json-number {
+      color: #b5cea8;
+    }
+
+    .json-boolean {
+      color: #569cd6;
+    }
+
+    .json-null {
+      color: #569cd6;
+    }
+
+    .loading {
+      display: inline-block;
+      width: 20px;
+      height: 20px;
+      border: 3px solid rgba(255,255,255,0.3);
+      border-radius: 50%;
+      border-top-color: white;
+      animation: spin 1s ease-in-out infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .info-box {
+      background: #e3f2fd;
+      border-left: 4px solid #2196f3;
+      padding:  15px;
+      margin-bottom: 20px;
+      border-radius: 4px;
+    }
+
+    .info-box h4 {
+      color: #1976d2;
+      margin-bottom: 8px;
+    }
+
+    .info-box p {
+      color: #555;
+      line-height: 1.6;
+    }
+
+    .grid-2 {
+      display: grid;
+      grid-template-columns:  1fr 1fr;
+      gap: 15px;
+    }
+
+    @media (max-width: 768px) {
+      .grid-2 {
+        grid-template-columns: 1fr;
+      }
+
+      .header h1 {
+        font-size: 1.8em;
+      }
+
+      .tabs {
+        flex-wrap: wrap;
+      }
+    }
+
+    .copy-btn {
+      background: #4caf50;
+      color: white;
+      border: none;
+      padding: 8px 15px;
+      border-radius:  6px;
+      cursor: pointer;
+      font-size: 0.9em;
+      transition: background 0.3s;
+    }
+
+    .copy-btn:hover {
+      background: #45a049;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>🚀 YesWeCheck API Tester</h1>
+      <p>Test all your email validation APIs in one place</p>
+    </div>
+
+    <div class="tabs">
+      <button class="tab active" onclick="switchTab('validate')">📧 Email Validation</button>
+      <button class="tab" onclick="switchTab('profanity')">🤬 Profanity Check</button>
+      <button class="tab" onclick="switchTab('disposable')">🗑️ Disposable Check</button>
+      <button class="tab" onclick="switchTab('role')">👤 Role Account</button>
+      <button class="tab" onclick="switchTab('dns')">🌐 DNS Validation</button>
+      <button class="tab" onclick="switchTab('syntax')">✅ Syntax Check</button>
+    </div>
+
+    <div class="content">
+      <!-- Email Validation -->
+      <div id="validate" class="api-section active">
+        <div class="info-box">
+          <h4>📧 Complete Email Validation</h4>
+          <p>Full validation pipeline including syntax, DNS, profanity, disposable domains, role accounts, and more. </p>
+        </div>
+
+        <div class="examples">
+          <button class="example-btn" onclick="setEmail('validate', 'john.doe@gmail.com')">✅ Valid Email</button>
+          <button class="example-btn" onclick="setEmail('validate', 'fuck@gmail.com')">🤬 Profanity</button>
+          <button class="example-btn" onclick="setEmail('validate', 'test@tempmail.com')">🗑️ Disposable</button>
+          <button class="example-btn" onclick="setEmail('validate', 'contact@company.com')">👤 Role Account</button>
+          <button class="example-btn" onclick="setEmail('validate', 'invalid@nonexistentdomain9999.com')">❌ Invalid DNS</button>
+        </div>
+
+        <div class="form-group">
+          <label for="email-validate">Email Address</label>
+          <input type="email" id="email-validate" placeholder="john.doe@example.com" value="john.doe@gmail.com">
+        </div>
+
+        <button class="btn" onclick="callAPI('validate')">
+          <span class="btn-text">Validate Email</span>
+        </button>
+
+        <div id="result-validate" class="result-container"></div>
+      </div>
+
+      <!-- Profanity Check -->
+      <div id="profanity" class="api-section">
+        <div class="info-box">
+          <h4>🤬 Profanity Detection</h4>
+          <p>Check if an email contains inappropriate language.  Detects leetspeak (sh1t → shit) and special characters (f*ck → fuck).</p>
+        </div>
+
+        <div class="examples">
+          <button class="example-btn" onclick="setEmail('profanity', 'john. doe@gmail.com')">✅ Clean</button>
+          <button class="example-btn" onclick="setEmail('profanity', 'fuck@test.com')">High Severity</button>
+          <button class="example-btn" onclick="setEmail('profanity', 'sh1thead@test.com')">Leetspeak</button>
+          <button class="example-btn" onclick="setEmail('profanity', 'connard123@test.fr')">French</button>
+          <button class="example-btn" onclick="setEmail('profanity', 'f*ck. off@test.com')">Special Chars</button>
+        </div>
+
+        <div class="form-group">
+          <label for="email-profanity">Email Address</label>
+          <input type="email" id="email-profanity" placeholder="test@example.com" value="john.doe@gmail.com">
+        </div>
+
+        <button class="btn" onclick="callAPI('profanity')">
+          <span class="btn-text">Check Profanity</span>
+        </button>
+
+        <div id="result-profanity" class="result-container"></div>
+      </div>
+
+      <!-- Disposable Check -->
+      <div id="disposable" class="api-section">
+        <div class="info-box">
+          <h4>🗑️ Disposable Email Detection</h4>
+          <p>Check if an email uses a temporary/disposable domain. Database of 13,000+ known providers.</p>
+        </div>
+
+        <div class="examples">
+          <button class="example-btn" onclick="setEmail('disposable', 'john@gmail.com')">✅ Valid</button>
+          <button class="example-btn" onclick="setEmail('disposable', 'test@tempmail.com')">TempMail</button>
+          <button class="example-btn" onclick="setEmail('disposable', 'user@guerrillamail.com')">GuerrillaMail</button>
+          <button class="example-btn" onclick="setEmail('disposable', 'hello@10minutemail.com')">10MinuteMail</button>
+          <button class="example-btn" onclick="setEmail('disposable', 'test@mailinator.com')">Mailinator</button>
+        </div>
+
+        <div class="form-group">
+          <label for="email-disposable">Email Address</label>
+          <input type="email" id="email-disposable" placeholder="test@example.com" value="john@gmail.com">
+        </div>
+
+        <button class="btn" onclick="callAPI('disposable')">
+          <span class="btn-text">Check Disposable</span>
+        </button>
+
+        <div id="result-disposable" class="result-container"></div>
+      </div>
+
+      <!-- Role Account -->
+      <div id="role" class="api-section">
+        <div class="info-box">
+          <h4>👤 Role Account Detection</h4>
+          <p>Detect generic role-based email addresses (info@, contact@, admin@, support@, etc.).</p>
+        </div>
+
+        <div class="examples">
+          <button class="example-btn" onclick="setEmail('role', 'john. doe@company.com')">✅ Personal</button>
+          <button class="example-btn" onclick="setEmail('role', 'contact@company.com')">contact@</button>
+          <button class="example-btn" onclick="setEmail('role', 'info@company.com')">info@</button>
+          <button class="example-btn" onclick="setEmail('role', 'admin@company.com')">admin@</button>
+          <button class="example-btn" onclick="setEmail('role', 'support@company.com')">support@</button>
+        </div>
+
+        <div class="form-group">
+          <label for="email-role">Email Address</label>
+          <input type="email" id="email-role" placeholder="test@example.com" value="john.doe@company.com">
+        </div>
+
+        <button class="btn" onclick="callAPI('role')">
+          <span class="btn-text">Check Role Account</span>
+        </button>
+
+        <div id="result-role" class="result-container"></div>
+      </div>
+
+      <!-- DNS Validation -->
+      <div id="dns" class="api-section">
+        <div class="info-box">
+          <h4>🌐 DNS/MX Record Validation</h4>
+          <p>Verify that the email domain has valid MX records and can receive emails.</p>
+        </div>
+
+        <div class="examples">
+          <button class="example-btn" onclick="setEmail('dns', 'test@gmail.com')">✅ Gmail</button>
+          <button class="example-btn" onclick="setEmail('dns', 'test@yahoo.com')">✅ Yahoo</button>
+          <button class="example-btn" onclick="setEmail('dns', 'test@outlook.com')">✅ Outlook</button>
+          <button class="example-btn" onclick="setEmail('dns', 'test@nonexistent9999.com')">❌ Invalid</button>
+        </div>
+
+        <div class="form-group">
+          <label for="email-dns">Email Address</label>
+          <input type="email" id="email-dns" placeholder="test@example.com" value="test@gmail.com">
+        </div>
+
+        <button class="btn" onclick="callAPI('dns')">
+          <span class="btn-text">Validate DNS</span>
+        </button>
+
+        <div id="result-dns" class="result-container"></div>
+      </div>
+
+      <!-- Syntax Check -->
+      <div id="syntax" class="api-section">
+        <div class="info-box">
+          <h4>✅ Syntax Validation</h4>
+          <p>Basic email syntax validation according to RFC standards.</p>
+        </div>
+
+        <div class="examples">
+          <button class="example-btn" onclick="setEmail('syntax', 'valid@email.com')">✅ Valid</button>
+          <button class="example-btn" onclick="setEmail('syntax', 'invalid. email')">❌ No @</button>
+          <button class="example-btn" onclick="setEmail('syntax', '@nodomain. com')">❌ No local</button>
+          <button class="example-btn" onclick="setEmail('syntax', 'space @email.com')">❌ Space</button>
+          <button class="example-btn" onclick="setEmail('syntax', 'double@@email.com')">❌ Double @</button>
+        </div>
+
+        <div class="form-group">
+          <label for="email-syntax">Email Address</label>
+          <input type="email" id="email-syntax" placeholder="test@example.com" value="valid@email.com">
+        </div>
+
+        <button class="btn" onclick="callAPI('syntax')">
+          <span class="btn-text">Check Syntax</span>
+        </button>
+
+        <div id="result-syntax" class="result-container"></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const API_BASE = 'http://localhost:3000/api/v1';
+
+    const API_ENDPOINTS = {
+      validate: {
+        url: '/validate',
+        method: 'POST',
+        body: (email) => ({ email })
+      },
+      profanity: {
+        url:  '/profanity/check',
+        method: 'POST',
+        body: (email) => ({ email })
+      },
+      disposable: {
+        url: '/disposable-email/check',
+        method: 'POST',
+        body: (email) => ({ email })
+      },
+      role: {
+        url: '/role-account/check',
+        method: 'POST',
+        body: (email) => ({ email })
+      },
+      dns: {
+        url: '/validate/dns',
+        method: 'POST',
+        body: (email) => ({ email })
+      },
+      syntax: {
+        url: '/validate/syntax',
+        method: 'POST',
+        body: (email) => ({ email })
+      }
+    };
+
+    function switchTab(tabName) {
+      // Update tabs
+      document.querySelectorAll('.tab').forEach(tab => tab.classList. remove('active'));
+      event.target.classList.add('active');
+
+      // Update sections
+      document.querySelectorAll('.api-section').forEach(section => section.classList.remove('active'));
+      document.getElementById(tabName).classList.add('active');
+    }
+
+    function setEmail(section, email) {
+      document.getElementById(`email-${section}`).value = email;
+    }
+
+    async function callAPI(apiName) {
+      const email = document.getElementById(`email-${apiName}`).value;
+      const resultContainer = document.getElementById(`result-${apiName}`);
+      const btn = event.target. closest('.btn');
+      const btnText = btn.querySelector('.btn-text');
+
+      if (!email) {
+        alert('Please enter an email address');
+        return;
+      }
+
+      // Show loading
+      btn.disabled = true;
+      btnText.innerHTML = '<span class="loading"></span> Loading...';
+
+      const endpoint = API_ENDPOINTS[apiName];
+      const url = API_BASE + endpoint.url;
+
+      try {
+        const startTime = Date.now();
+        const response = await fetch(url, {
+          method: endpoint.method,
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(endpoint.body(email))
+        });
+
+        const executionTime = Date.now() - startTime;
+        const data = await response.json();
+
+        // Add execution time if not already present
+        if (!data. executionTime) {
+          data._executionTime = executionTime + 'ms';
+        }
+
+        displayResult(resultContainer, data, response. ok);
+      } catch (error) {
+        displayResult(resultContainer, {
+          error: error.message,
+          details: 'Failed to connect to API.  Make sure the server is running on port 3000.'
+        }, false);
+      } finally {
+        btn.disabled = false;
+        btnText.textContent = btnText.textContent.replace(/Loading\. \. \. /, getButtonText(apiName));
+      }
+    }
+
+    function getButtonText(apiName) {
+      const texts = {
+        validate: 'Validate Email',
+        profanity: 'Check Profanity',
+        disposable: 'Check Disposable',
+        role: 'Check Role Account',
+        dns: 'Validate DNS',
+        syntax: 'Check Syntax'
+      };
+      return texts[apiName] || 'Submit';
+    }
+
+    function displayResult(container, data, isSuccess) {
+      const status = getStatus(data, isSuccess);
+      const formattedJSON = syntaxHighlight(JSON.stringify(data, null, 2));
+
+      container.innerHTML = `
+        <div class="result-header">
+          <h3>📊 Result</h3>
+          <div>
+            <span class="status-badge ${status.class}">${status.text}</span>
+            <button class="copy-btn" onclick="copyResult(this)" style="margin-left: 10px;">📋 Copy JSON</button>
+          </div>
+        </div>
+        <div class="result-box">${formattedJSON}</div>
+      `;
+
+      container.classList.add('show');
+      container.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+
+    function getStatus(data, isSuccess) {
+      if (! isSuccess) {
+        return { class: 'status-error', text: '❌ Error' };
+      }
+
+      if (data.isValid === false || data.hasProfanity === true || data.isDisposable === true) {
+        return { class: 'status-error', text: '❌ Failed' };
+      }
+
+      if (data.score && data.score < 70) {
+        return { class:  'status-warning', text: '⚠️ Warning' };
+      }
+
+      if (data.isRole === true) {
+        return { class: 'status-warning', text: '⚠️ Role Account' };
+      }
+
+      return { class: 'status-success', text: '✅ Success' };
+    }
+
+    function syntaxHighlight(json) {
+      json = json.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      return json.replace(/("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?)/g, function (match) {
+        let cls = 'json-number';
+        if (/^"/.test(match)) {
+          if (/: $/.test(match)) {
+            cls = 'json-key';
+          } else {
+            cls = 'json-string';
+          }
+        } else if (/true|false/.test(match)) {
+          cls = 'json-boolean';
+        } else if (/null/.test(match)) {
+          cls = 'json-null';
+        }
+        return '<span class="' + cls + '">' + match + '</span>';
+      });
+    }
+
+    function copyResult(btn) {
+      const resultBox = btn.closest('.result-container').querySelector('.result-box');
+      const text = resultBox.innerText;
+
+      navigator.clipboard.writeText(text).then(() => {
+        const originalText = btn.textContent;
+        btn.textContent = '✅ Copied!';
+        btn.style.background = '#4caf50';
+
+        setTimeout(() => {
+          btn.textContent = originalText;
+          btn.style.background = '';
+        }, 2000);
+      });
+    }
+  </script>
+</body>
+</html>

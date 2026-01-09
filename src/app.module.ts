@@ -8,6 +8,7 @@ import { RoleAccountModule } from './role-account/role-account.module';
 import { DisposableEmailModule } from './disposable-email/disposable-email.module';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
+import { RandomDetectionModule } from './random-detection/random-detection.module';
 
 @Module({
   imports: [
@@ -21,6 +22,7 @@ import { AppService } from './app.service';
     BlacklistModule,
     RoleAccountModule,
     DisposableEmailModule,
+    RandomDetectionModule,
   ],
   controllers: [AppController],
   providers: [AppService],

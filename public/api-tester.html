@@ -1,0 +1,923 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>YesWeCheck API Tester</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      padding: 20px;
+    }
+
+    .container { max-width: 1200px; margin: 0 auto; }
+
+    .header {
+      text-align: center;
+      color: white;
+      margin-bottom: 30px;
+    }
+
+    .header h1 {
+      font-size: 2.5em;
+      margin-bottom: 10px;
+      text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.2);
+    }
+
+    .header p { font-size: 1.1em; opacity: 0.9; }
+
+    .tabs {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+    }
+
+    .tab {
+      flex: 1;
+      min-width: 150px;
+      padding: 15px 20px;
+      background: rgba(255, 255, 255, 0.2);
+      border: none;
+      color: white;
+      font-size: 1em;
+      font-weight: 600;
+      cursor: pointer;
+      border-radius: 10px;
+      transition: all 0.3s ease;
+      backdrop-filter: blur(10px);
+    }
+
+    .tab:hover { background: rgba(255, 255, 255, 0.3); transform: translateY(-2px); }
+
+    .tab.active {
+      background: white;
+      color: #667eea;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+    }
+
+    .api-section {
+      display: none;
+      background: white;
+      border-radius: 15px;
+      padding: 30px;
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+    }
+
+    .api-section.active {
+      display: block;
+      animation: fadeIn 0.3s ease;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    h2 { color: #333; margin-bottom: 15px; font-size: 1.8em; }
+
+    .description { color: #666; margin-bottom: 25px; line-height: 1.6; }
+
+    .input-group { margin-bottom: 20px; }
+
+    label { display: block; color: #333; font-weight: 600; margin-bottom: 8px; }
+
+    input[type="email"],
+    input[type="text"] {
+      width: 100%;
+      padding: 12px 15px;
+      border: 2px solid #e0e0e0;
+      border-radius: 8px;
+      font-size: 1em;
+      transition: border-color 0.3s ease;
+    }
+
+    /* FIX: "input: focus" => "input:focus" */
+    input:focus {
+      outline: none;
+      border-color: #667eea;
+    }
+
+    .btn {
+      width: 100%;
+      padding: 15px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 1.1em;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      margin-top: 10px;
+    }
+
+    /* FIX: ". btn:hover: not(:disabled)" => ".btn:hover:not(:disabled)" */
+    .btn:hover:not(:disabled) {
+      transform: translateY(-2px);
+      box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
+    }
+
+    .btn:disabled { opacity: 0.6; cursor: not-allowed; }
+
+    .btn-text { display: inline-block; }
+
+    .loading {
+      display: inline-block;
+      width: 14px;
+      height: 14px;
+      border: 2px solid rgba(255, 255, 255, 0.3);
+      border-radius: 50%;
+      border-top-color: white;
+      animation: spin 0.8s linear infinite;
+      margin-right: 8px;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .result-container {
+      margin-top: 25px;
+      padding: 20px;
+      background: #f8f9fa;
+      border-radius: 10px;
+      border: 1px solid #e0e0e0;
+      display: none;
+    }
+
+    .result-container.show {
+      display: block;
+      animation: slideIn 0.3s ease;
+    }
+
+    @keyframes slideIn {
+      from { opacity: 0; transform: translateY(-10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .result-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+      padding-bottom: 15px;
+      border-bottom: 2px solid #dee2e6;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .result-header h3 { color: #333; margin: 0; }
+
+    .status-badge {
+      padding: 8px 16px;
+      border-radius: 20px;
+      font-weight: 600;
+      font-size: 0.9em;
+      white-space: nowrap;
+    }
+
+    .status-success { background: #d4edda; color: #155724; }
+    .status-error { background: #f8d7da; color: #721c24; }
+    .status-warning { background: #fff3cd; color: #856404; }
+
+    .result-box {
+      background: #2d2d2d;
+      color: #f8f9fa;
+      padding: 15px;
+      border-radius: 8px;
+      overflow-x: auto;
+      font-family: 'Courier New', monospace;
+      font-size: 0.9em;
+      line-height: 1.5;
+    }
+
+    .copy-btn {
+      padding: 8px 16px;
+      background: #667eea;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.9em;
+      transition: all 0.3s ease;
+      white-space: nowrap;
+    }
+
+    .copy-btn:hover { background: #5568d3; }
+
+    .examples {
+      margin-bottom: 20px;
+      padding: 15px;
+      background: #f0f0f0;
+      border-radius: 8px;
+    }
+
+    .examples strong { display: block; margin-bottom: 10px; color: #333; }
+
+    .example-btn {
+      padding: 8px 15px;
+      margin: 5px 5px 5px 0;
+      background: white;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.9em;
+      transition: all 0.3s ease;
+    }
+
+    .example-btn:hover {
+      background: #667eea;
+      color: white;
+      border-color: #667eea;
+    }
+
+    /* JSON Syntax Highlighting */
+    .json-key { color: #a0d9f7; }
+    .json-string { color: #98c379; }
+    .json-number { color: #d19a66; }
+    .json-boolean { color: #c678dd; }
+    .json-null { color: #e06c75; }
+
+    /* Pretty View Styles */
+    .pretty-container { display: grid; gap: 20px; }
+
+    .pretty-card {
+      background: #f8f9fa;
+      border: 1px solid #dee2e6;
+      border-radius: 8px;
+      padding: 20px;
+    }
+
+    .pretty-card h4 {
+      margin: 0 0 15px 0;
+      color: #333;
+      font-size: 1.1em;
+      border-bottom: 2px solid #667eea;
+      padding-bottom: 8px;
+    }
+
+    /* FIX: ". pretty-table" => ".pretty-table" */
+    .pretty-table { width: 100%; border-collapse: collapse; }
+
+    .pretty-table tr { border-bottom: 1px solid #e0e0e0; }
+    .pretty-table tr:last-child { border-bottom: none; }
+
+    .pretty-table td { padding: 12px 8px; vertical-align: top; }
+
+    .pretty-table td:first-child { width: 40%; color: #666; }
+    .pretty-table td:last-child { color: #333; font-weight: 500; }
+
+    .badge {
+      display: inline-block;
+      padding: 4px 10px;
+      border-radius: 4px;
+      background: #e3f2fd;
+      color: #1976d2;
+      font-size: 0.9em;
+      margin: 2px;
+    }
+
+    /* FIX: ". badge-success" => ".badge-success" */
+    .badge-success {
+      display: inline-block;
+      padding: 4px 10px;
+      border-radius: 4px;
+      background: #4caf50;
+      color: white;
+      font-size: 0.9em;
+      font-weight: 600;
+    }
+
+    .badge-error {
+      display: inline-block;
+      padding: 4px 10px;
+      border-radius: 4px;
+      background: #f44336;
+      color: white;
+      font-size: 0.9em;
+      font-weight: 600;
+    }
+
+    .badge-warning {
+      display: inline-block;
+      padding: 4px 10px;
+      border-radius: 4px;
+      background: #ff9800;
+      color: white;
+      font-size: 0.9em;
+      font-weight: 600;
+    }
+
+    .raw-json-container { max-height: 400px; }
+    .pretty-view { margin-bottom: 10px; }
+  </style>
+</head>
+
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>🚀 YesWeCheck API Tester</h1>
+      <p>Test all email validation endpoints with beautiful visualizations</p>
+    </div>
+
+    <div class="tabs">
+      <!-- FIX: pass event -->
+      <button class="tab active" onclick="switchTab('validate', event)">📧 Email Validation</button>
+      <button class="tab" onclick="switchTab('profanity', event)">🤬 Profanity Check</button>
+      <button class="tab" onclick="switchTab('disposable', event)">🗑️ Disposable Check</button>
+      <button class="tab" onclick="switchTab('role', event)">👤 Role Account</button>
+      <button class="tab" onclick="switchTab('random', event)">🎲 Random Detection</button>
+      <button class="tab" onclick="switchTab('dns', event)">🌐 DNS Validation</button>
+      <button class="tab" onclick="switchTab('syntax', event)">✅ Syntax Check</button>
+    </div>
+
+    <div class="content">
+      <!-- Email Validation Section -->
+      <div id="validate" class="api-section active">
+        <h2>📧 Complete Email Validation</h2>
+        <p class="description">
+          Performs a comprehensive validation including syntax, DNS, MX records, profanity detection,
+          disposable email detection, role account detection, and random character detection.
+        </p>
+
+        <div class="input-group">
+          <label for="email-validate">Email Address</label>
+          <input type="email" id="email-validate" placeholder="Enter email address" value="test@example.com" />
+        </div>
+
+        <div class="examples">
+          <strong>Examples:</strong>
+          <button class="example-btn" onclick="setEmail('validate', 'john.doe@gmail.com')">✅ Valid email</button>
+          <button class="example-btn" onclick="setEmail('validate', 'test@tempmail.com')">🗑️ Disposable</button>
+          <button class="example-btn" onclick="setEmail('validate', 'admin@company.com')">👤 Role account</button>
+          <button class="example-btn" onclick="setEmail('validate', 'fuck@test.com')">🤬 Profanity</button>
+          <button class="example-btn" onclick="setEmail('validate', 'x8z2k9m3n7p5@gmail.com')">🎲 Random</button>
+        </div>
+
+        <!-- FIX: pass event -->
+        <button class="btn" onclick="callAPI('validate', event)">
+          <span class="btn-text">Validate Email</span>
+        </button>
+
+        <div id="result-validate" class="result-container"></div>
+      </div>
+
+      <!-- Profanity Check Section -->
+      <div id="profanity" class="api-section">
+        <h2>🤬 Profanity Detection</h2>
+        <p class="description">
+          Checks if the email address contains inappropriate or offensive language.
+          Supports multiple languages and severity levels.
+        </p>
+
+        <div class="input-group">
+          <label for="email-profanity">Email Address</label>
+          <input type="email" id="email-profanity" placeholder="Enter email address" value="test@example.com" />
+        </div>
+
+        <div class="examples">
+          <strong>Examples:</strong>
+          <button class="example-btn" onclick="setEmail('profanity', 'hello@example.com')">✅ Clean</button>
+          <button class="example-btn" onclick="setEmail('profanity', 'fuck@test.com')">❌ Contains profanity</button>
+          <button class="example-btn" onclick="setEmail('profanity', 'shit.happens@domain.com')">❌ Profanity in local part</button>
+        </div>
+
+        <button class="btn" onclick="callAPI('profanity', event)">
+          <span class="btn-text">Check Profanity</span>
+        </button>
+
+        <div id="result-profanity" class="result-container"></div>
+      </div>
+
+      <!-- Disposable Email Check Section -->
+      <div id="disposable" class="api-section">
+        <h2>🗑️ Disposable Email Detection</h2>
+        <p class="description">
+          Identifies temporary or disposable email addresses from providers like TempMail, Guerrilla Mail, etc.
+          Database contains 13,000+ known disposable domains.
+        </p>
+
+        <div class="input-group">
+          <label for="email-disposable">Email Address</label>
+          <input type="email" id="email-disposable" placeholder="Enter email address" value="test@tempmail.com" />
+        </div>
+
+        <div class="examples">
+          <strong>Examples:</strong>
+          <button class="example-btn" onclick="setEmail('disposable', 'user@gmail.com')">✅ Legitimate</button>
+          <button class="example-btn" onclick="setEmail('disposable', 'test@tempmail.com')">❌ Disposable</button>
+          <button class="example-btn" onclick="setEmail('disposable', 'fake@guerrillamail.com')">❌ Temporary</button>
+          <button class="example-btn" onclick="setEmail('disposable', 'throwaway@10minutemail.com')">❌ 10 minute mail</button>
+        </div>
+
+        <button class="btn" onclick="callAPI('disposable', event)">
+          <span class="btn-text">Check Disposable</span>
+        </button>
+
+        <div id="result-disposable" class="result-container"></div>
+      </div>
+
+      <!-- Role Account Check Section -->
+      <div id="role" class="api-section">
+        <h2>👤 Role Account Detection</h2>
+        <p class="description">
+          Detects generic role-based email addresses like admin@, info@, contact@, support@, etc.
+          These are typically not personal addresses.
+        </p>
+
+        <div class="input-group">
+          <label for="email-role">Email Address</label>
+          <input type="email" id="email-role" placeholder="Enter email address" value="info@company.com" />
+        </div>
+
+        <div class="examples">
+          <strong>Examples:</strong>
+          <button class="example-btn" onclick="setEmail('role', 'john.smith@company.com')">✅ Personal</button>
+          <button class="example-btn" onclick="setEmail('role', 'admin@company.com')">❌ Role account</button>
+          <button class="example-btn" onclick="setEmail('role', 'contact@business.com')">❌ Generic contact</button>
+          <button class="example-btn" onclick="setEmail('role', 'support@service.com')">❌ Support account</button>
+        </div>
+
+        <button class="btn" onclick="callAPI('role', event)">
+          <span class="btn-text">Check Role Account</span>
+        </button>
+
+        <div id="result-role" class="result-container"></div>
+      </div>
+
+      <!-- Random Detection Section -->
+      <div id="random" class="api-section">
+        <h2>🎲 Random Character Detection</h2>
+        <p class="description">
+          Detect if the email local part contains random or generated characters based on entropy,
+          vowel ratio, and digit patterns. This is a non-blocking check that provides a warning flag.
+        </p>
+
+        <div class="input-group">
+          <label for="email-random">Email Address</label>
+          <input type="email" id="email-random" placeholder="Enter email address" value="x8z2k9m3n7p5@gmail.com" />
+        </div>
+
+        <div class="examples">
+          <strong>Examples:</strong>
+          <button class="example-btn" onclick="setEmail('random', 'ehfjbfjzbfzf@gmail.com')">Random letters</button>
+          <button class="example-btn" onclick="setEmail('random', 'a7k2m9x5p3@gmail.com')">Random + digits</button>
+          <button class="example-btn" onclick="setEmail('random', 'x8z2k9m3n7p5@tempmail.com')">High entropy</button>
+          <button class="example-btn" onclick="setEmail('random', 'john.smith@gmail.com')">✅ Legitimate</button>
+          <button class="example-btn" onclick="setEmail('random', 'contact123@test.com')">✅ Normal pattern</button>
+        </div>
+
+        <button class="btn" onclick="callAPI('random', event)">
+          <span class="btn-text">Check Random</span>
+        </button>
+
+        <div id="result-random" class="result-container"></div>
+      </div>
+
+      <!-- DNS Validation Section -->
+      <div id="dns" class="api-section">
+        <h2>🌐 DNS & MX Records Validation</h2>
+        <p class="description">
+          Verifies that the email domain exists and has valid MX (Mail Exchange) records configured.
+          This ensures the domain can actually receive emails.
+        </p>
+
+        <div class="input-group">
+          <label for="email-dns">Email Address</label>
+          <input type="email" id="email-dns" placeholder="Enter email address" value="test@gmail.com" />
+        </div>
+
+        <div class="examples">
+          <strong>Examples:</strong>
+          <button class="example-btn" onclick="setEmail('dns', 'test@gmail.com')">✅ Valid MX</button>
+          <button class="example-btn" onclick="setEmail('dns', 'test@microsoft.com')">✅ Enterprise MX</button>
+          <button class="example-btn" onclick="setEmail('dns', 'test@invaliddomain9999.com')">❌ Invalid domain</button>
+          <button class="example-btn" onclick="setEmail('dns', 'test@example.com')">⚠️ Example domain</button>
+        </div>
+
+        <button class="btn" onclick="callAPI('dns', event)">
+          <span class="btn-text">Validate DNS</span>
+        </button>
+
+        <div id="result-dns" class="result-container"></div>
+      </div>
+
+      <!-- Syntax Check Section -->
+      <div id="syntax" class="api-section">
+        <h2>✅ Email Syntax Validation</h2>
+        <p class="description">
+          Validates the email address format according to RFC 5322 standards.
+          Checks for proper structure, valid characters, and correct length.
+        </p>
+
+        <div class="input-group">
+          <label for="email-syntax">Email Address</label>
+          <input type="email" id="email-syntax" placeholder="Enter email address" value="user@example.com" />
+        </div>
+
+        <div class="examples">
+          <strong>Examples:</strong>
+          <button class="example-btn" onclick="setEmail('syntax', 'valid.email@domain.com')">✅ Valid</button>
+          <button class="example-btn" onclick="setEmail('syntax', 'invalid@')">❌ Missing domain</button>
+          <button class="example-btn" onclick="setEmail('syntax', '@domain.com')">❌ Missing local part</button>
+          <button class="example-btn" onclick="setEmail('syntax', 'no-at-sign.com')">❌ No @ symbol</button>
+        </div>
+
+        <button class="btn" onclick="callAPI('syntax', event)">
+          <span class="btn-text">Check Syntax</span>
+        </button>
+
+        <div id="result-syntax" class="result-container"></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // FIX: removed space in domain
+    const API_BASE = 'https://email.yeswecheck.fr/api/v1';
+
+    const API_ENDPOINTS = {
+      validate:   { url: '/validate',               method: 'POST', body: (email) => ({ email }) },
+      profanity:  { url: '/profanity/check',        method: 'POST', body: (email) => ({ email }) },
+      disposable: { url: '/disposable-email/check', method: 'POST', body: (email) => ({ email }) },
+      role:       { url: '/role-account/check',     method: 'POST', body: (email) => ({ email }) },
+      random:     { url: '/random-detection/check', method: 'POST', body: (email) => ({ email }) },
+      dns:        { url: '/validate/dns',           method: 'POST', body: (email) => ({ email }) },
+      syntax:     { url: '/validate/syntax',        method: 'POST', body: (email) => ({ email }) }
+    };
+
+    // FIX: accept event
+    function switchTab(tabName, ev) {
+      document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+      if (ev && ev.target) ev.target.classList.add('active');
+
+      document.querySelectorAll('.api-section').forEach(section => section.classList.remove('active'));
+      const section = document.getElementById(tabName);
+      if (section) section.classList.add('active');
+    }
+
+    function setEmail(section, email) {
+      const input = document.getElementById(`email-${section}`);
+      if (input) input.value = email;
+    }
+
+    // Robust JSON parsing: if API returns HTML/error page, we still show it
+    async function safeReadJson(response) {
+      const text = await response.text();
+      try { return text ? JSON.parse(text) : {}; }
+      catch { return { raw: text }; }
+    }
+
+    // FIX: accept event, remove "event is not defined" issues
+    async function callAPI(apiName, ev) {
+      const input = document.getElementById(`email-${apiName}`);
+      const email = (input?.value || '').trim();
+      const resultContainer = document.getElementById(`result-${apiName}`);
+
+      const btn = ev?.target?.closest('.btn');
+      const btnText = btn ? btn.querySelector('.btn-text') : null;
+
+      if (!email) {
+        alert('Please enter an email address');
+        return;
+      }
+
+      if (btn && btnText) {
+        btn.disabled = true;
+        btnText.innerHTML = '<span class="loading"></span> Loading...';
+      }
+
+      const endpoint = API_ENDPOINTS[apiName];
+      if (!endpoint) {
+        displayResult(resultContainer, { error: `Unknown API: ${apiName}` }, false, apiName);
+        if (btn && btnText) { btn.disabled = false; btnText.textContent = getButtonText(apiName); }
+        return;
+      }
+
+      const url = API_BASE + endpoint.url;
+
+      try {
+        const startTime = Date.now();
+        const response = await fetch(url, {
+          method: endpoint.method,
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(endpoint.body(email))
+        });
+
+        const executionTime = Date.now() - startTime;
+        const data = await safeReadJson(response);
+
+        if (!data.executionTime) data._executionTime = executionTime + 'ms';
+
+        // FIX: response.ok (no space)
+        displayResult(resultContainer, data, response.ok, apiName);
+      } catch (error) {
+        displayResult(resultContainer, {
+          error: error?.message || String(error),
+          details: 'Failed to connect to API. Make sure the server is running.'
+        }, false, apiName);
+      } finally {
+        if (btn && btnText) {
+          btn.disabled = false;
+          btnText.textContent = getButtonText(apiName);
+        }
+      }
+    }
+
+    function getButtonText(apiName) {
+      const texts = {
+        validate: 'Validate Email',
+        profanity: 'Check Profanity',
+        disposable: 'Check Disposable',
+        role: 'Check Role Account',
+        random: 'Check Random',
+        dns: 'Validate DNS',
+        syntax: 'Check Syntax'
+      };
+      return texts[apiName] || 'Submit';
+    }
+
+    function displayResult(container, data, isSuccess, apiName) {
+      const status = getStatus(data, isSuccess);
+      const prettyView = createPrettyView(data, apiName);
+      const formattedJSON = syntaxHighlight(JSON.stringify(data, null, 2));
+
+      container.innerHTML = `
+        <div class="result-header">
+          <h3>📊 Result</h3>
+          <div>
+            <span class="status-badge ${status.class}">${status.text}</span>
+            <button class="copy-btn" onclick="copyResult(this)" style="margin-left: 10px;">📋 Copy JSON</button>
+          </div>
+        </div>
+
+        <div class="pretty-view">${prettyView}</div>
+
+        <div style="margin-top: 20px;">
+          <button class="example-btn" onclick="toggleRawJson(this)" style="width: 100%;">🔽 Show Raw JSON</button>
+          <div class="result-box raw-json-container" style="display: none; margin-top: 10px;">${formattedJSON}</div>
+        </div>
+      `;
+
+      container.classList.add('show');
+      container.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+
+    function createPrettyView(data, apiName) {
+      let html = '<div class="pretty-container">';
+
+      if (apiName === 'validate') {
+        const riskOverall = data?.risk?.overall ?? data?.riskLevel ?? data?.risk ?? null;
+
+        html += `
+          <div class="pretty-card">
+            <h4>📧 Email Information</h4>
+            <table class="pretty-table">
+              <tr><td><strong>Email</strong></td><td>${escapeHtml(data.email || 'N/A')}</td></tr>
+              <tr><td><strong>Valid</strong></td><td>${formatBoolean(data.isValid)}</td></tr>
+              <tr><td><strong>Score</strong></td><td>${formatScore(data.score)}</td></tr>
+              <tr><td><strong>Risk Level</strong></td><td>${formatRiskLevel(riskOverall)}</td></tr>
+              ${(data.executionTime || data._executionTime) ? `<tr><td><strong>Execution Time</strong></td><td>${escapeHtml(String(data.executionTime || data._executionTime))}</td></tr>` : ''}
+            </table>
+          </div>
+        `;
+
+        // Core checks (syntax/dns)
+        if (data.details?.syntax || data.details?.dns) {
+          html += `
+            <div class="pretty-card">
+              <h4>✅ Core Validation</h4>
+              <table class="pretty-table">
+                ${data.details?.syntax ? `
+                  <tr><td><strong>Syntax</strong></td><td>${formatBoolean(data.details.syntax?.isValid)}</td></tr>
+                ` : ''}
+                ${data.details?.dns ? `
+                  <tr><td><strong>DNS/MX Records</strong></td><td>${formatBoolean(data.details.dns?.isValid)}</td></tr>
+                ` : ''}
+              </table>
+            </div>
+          `;
+        }
+
+        // Disposable / Role etc. if present
+        if (data.details?.disposable) {
+          html += `
+            <div class="pretty-card">
+              <h4>🗑️ Disposable</h4>
+              <table class="pretty-table">
+                <tr><td><strong>Is Disposable</strong></td><td>${formatBoolean(data.details.disposable?.isDisposable)}</td></tr>
+              </table>
+            </div>
+          `;
+        }
+
+        if (data.details?.roleAccount) {
+          html += `
+            <div class="pretty-card">
+              <h4>👤 Role Account</h4>
+              <table class="pretty-table">
+                <tr><td><strong>Is Role</strong></td><td>${formatBoolean(data.details.roleAccount?.isRole)}</td></tr>
+                ${data.details.roleAccount?.pattern ? `<tr><td><strong>Pattern</strong></td><td><code>${escapeHtml(data.details.roleAccount.pattern)}</code></td></tr>` : ''}
+              </table>
+            </div>
+          `;
+        }
+
+        if (data.details?.randomDetection) {
+          const rd = data.details.randomDetection;
+          html += `
+            <div class="pretty-card">
+              <h4>🎲 Random Detection</h4>
+              <table class="pretty-table">
+                <tr><td><strong>Is Random</strong></td><td>${formatBoolean(rd.isRandom)}</td></tr>
+                ${rd.isRandom ? `
+                  <tr><td><strong>Confidence</strong></td><td>${formatScore(rd.score)}</td></tr>
+                  <tr><td><strong>Entropy</strong></td><td>${rd.metrics?.entropy?.toFixed?.(2) ?? 'N/A'}</td></tr>
+                  <tr><td><strong>Digit Ratio</strong></td><td>${(((rd.metrics?.digitRatio || 0) * 100).toFixed(0))}%</td></tr>
+                  <tr><td><strong>Vowel Ratio</strong></td><td>${(((rd.metrics?.vowelRatio || 0) * 100).toFixed(0))}%</td></tr>
+                ` : ''}
+              </table>
+            </div>
+          `;
+        }
+      }
+      else if (apiName === 'profanity') {
+        html += `
+          <div class="pretty-card">
+            <h4>🤬 Profanity Detection</h4>
+            <table class="pretty-table">
+              <tr><td><strong>Email</strong></td><td>${escapeHtml(data.email || 'N/A')}</td></tr>
+              <tr><td><strong>Has Profanity</strong></td><td>${formatBoolean(data.hasProfanity)}</td></tr>
+              ${Array.isArray(data.words) && data.words.length ? `
+                <tr><td><strong>Matched Words</strong></td><td>${data.words.map(w => `<span class="badge-error">${escapeHtml(w)}</span>`).join(' ')}</td></tr>
+              ` : ''}
+              ${data.severity ? `<tr><td><strong>Severity</strong></td><td>${formatSeverity(data.severity)}</td></tr>` : ''}
+            </table>
+          </div>
+        `;
+      }
+      else if (apiName === 'disposable') {
+        html += `
+          <div class="pretty-card">
+            <h4>🗑️ Disposable</h4>
+            <table class="pretty-table">
+              <tr><td><strong>Email</strong></td><td>${escapeHtml(data.email || 'N/A')}</td></tr>
+              <tr><td><strong>Is Disposable</strong></td><td>${formatBoolean(data.isDisposable)}</td></tr>
+              <tr><td><strong>Domain</strong></td><td><code>${escapeHtml(data.domain || 'N/A')}</code></td></tr>
+            </table>
+          </div>
+        `;
+      }
+      else if (apiName === 'role') {
+        html += `
+          <div class="pretty-card">
+            <h4>👤 Role Account</h4>
+            <table class="pretty-table">
+              <tr><td><strong>Email</strong></td><td>${escapeHtml(data.email || 'N/A')}</td></tr>
+              <tr><td><strong>Is Role</strong></td><td>${formatBoolean(data.isRole)}</td></tr>
+              ${data.pattern ? `<tr><td><strong>Pattern</strong></td><td><code>${escapeHtml(data.pattern)}</code></td></tr>` : ''}
+            </table>
+          </div>
+        `;
+      }
+      else if (apiName === 'random') {
+        html += `
+          <div class="pretty-card">
+            <h4>🎲 Random Detection</h4>
+            <table class="pretty-table">
+              <tr><td><strong>Email</strong></td><td>${escapeHtml(data.email || 'N/A')}</td></tr>
+              <tr><td><strong>Local Part</strong></td><td><code>${escapeHtml(data.localPart || 'N/A')}</code></td></tr>
+              <tr><td><strong>Is Random</strong></td><td>${formatBoolean(data.isRandom)}</td></tr>
+              <tr><td><strong>Score</strong></td><td>${formatScore(data.score)}</td></tr>
+            </table>
+          </div>
+        `;
+      }
+      else if (apiName === 'dns') {
+        html += `
+          <div class="pretty-card">
+            <h4>🌐 DNS Validation</h4>
+            <table class="pretty-table">
+              <tr><td><strong>Email</strong></td><td>${escapeHtml(data.email || 'N/A')}</td></tr>
+              <tr><td><strong>Valid DNS</strong></td><td>${formatBoolean(data.isValid)}</td></tr>
+              <tr><td><strong>Message</strong></td><td>${escapeHtml(data.message || 'N/A')}</td></tr>
+            </table>
+          </div>
+        `;
+      }
+      else if (apiName === 'syntax') {
+        html += `
+          <div class="pretty-card">
+            <h4>✅ Syntax</h4>
+            <table class="pretty-table">
+              <tr><td><strong>Email</strong></td><td>${escapeHtml(data.email || 'N/A')}</td></tr>
+              <tr><td><strong>Valid Syntax</strong></td><td>${formatBoolean(data.isValid)}</td></tr>
+              <tr><td><strong>Message</strong></td><td>${escapeHtml(data.message || 'N/A')}</td></tr>
+            </table>
+          </div>
+        `;
+      }
+
+      html += '</div>';
+      return html;
+    }
+
+    function formatBoolean(value) {
+      if (value === true) return '<span class="badge-success">✅ Yes</span>';
+      if (value === false) return '<span class="badge-error">❌ No</span>';
+      return escapeHtml(String(value ?? 'N/A'));
+    }
+
+    function formatScore(score) {
+      if (score === undefined || score === null) return 'N/A';
+      let color = '#4caf50';
+      if (score < 50) color = '#f44336';
+      else if (score < 70) color = '#ff9800';
+      return `<span style="color:${color}; font-weight:bold; font-size:1.2em;">${escapeHtml(String(score))}/100</span>`;
+    }
+
+    function formatRiskLevel(level) {
+      const levels = {
+        'none': '<span class="badge-success">🟢 No Risk</span>',
+        'low': '<span class="badge-success">🟢 Low Risk</span>',
+        'medium': '<span class="badge-warning">🟡 Medium Risk</span>',
+        'high': '<span class="badge-error">🔴 High Risk</span>'
+      };
+      return levels[level] || escapeHtml(String(level ?? 'N/A'));
+    }
+
+    function formatSeverity(severity) {
+      const severities = {
+        'none': '<span class="badge-success">None</span>',
+        'low': '<span class="badge-warning">Low</span>',
+        'medium': '<span class="badge-warning">Medium</span>',
+        'high': '<span class="badge-error">High</span>'
+      };
+      return severities[severity] || escapeHtml(String(severity ?? 'N/A'));
+    }
+
+    function toggleRawJson(btn) {
+      const container = btn.nextElementSibling;
+      const isHidden = container.style.display === 'none' || container.style.display === '';
+      container.style.display = isHidden ? 'block' : 'none';
+      btn.textContent = isHidden ? '🔼 Hide Raw JSON' : '🔽 Show Raw JSON';
+    }
+
+    function getStatus(data, isSuccess) {
+      if (!isSuccess) return { class: 'status-error', text: '❌ Error' };
+      if (data.isValid === false || data.hasProfanity === true || data.isDisposable === true) {
+        return { class: 'status-error', text: '❌ Failed' };
+      }
+      if (typeof data.score === 'number' && data.score < 70) {
+        return { class: 'status-warning', text: '⚠️ Warning' };
+      }
+      if (data.isRole === true || data.isRandom === true) {
+        return { class: 'status-warning', text: '⚠️ Warning' };
+      }
+      return { class: 'status-success', text: '✅ Success' };
+    }
+
+    function syntaxHighlight(json) {
+      json = json.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      return json.replace(
+        /("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?)/g,
+        function (match) {
+          let cls = 'json-number';
+          if (/^"/.test(match)) cls = /:$/.test(match) ? 'json-key' : 'json-string';
+          else if (/true|false/.test(match)) cls = 'json-boolean';
+          else if (/null/.test(match)) cls = 'json-null';
+          return '<span class="' + cls + '">' + match + '</span>';
+        }
+      );
+    }
+
+    function copyResult(btn) {
+      const resultContainer = btn.closest('.result-container');
+      const rawJsonContainer = resultContainer.querySelector('.raw-json-container');
+      const text = rawJsonContainer ? rawJsonContainer.innerText : '';
+
+      navigator.clipboard.writeText(text).then(() => {
+        const originalText = btn.textContent;
+        btn.textContent = '✅ Copied!';
+        btn.style.background = '#4caf50';
+        setTimeout(() => {
+          btn.textContent = originalText;
+          btn.style.background = '';
+        }, 2000);
+      });
+    }
+
+    function escapeHtml(str) {
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+  </script>
+</body>
+</html>

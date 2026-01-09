@@ -6,6 +6,7 @@ import { RoleAccountService } from '../role-account/role-account.service';
 import { WhitelistService } from '../whitelist/whitelist.service';
 import { BlacklistService } from '../blacklist/blacklist.service';
 import { ProfanityService } from '../profanity/profanity.service';
+import { RandomDetectionService } from '../random-detection/random-detection.service';
 
 const resolveMx = promisify(dns. resolveMx);
 
@@ -17,6 +18,7 @@ export class ValidationService {
     private readonly whitelistService:  WhitelistService,
     private readonly blacklistService: BlacklistService,
     private readonly profanityService: ProfanityService,
+    private readonly randomDetectionService: RandomDetectionService,
   ) {}
 
   /**
@@ -27,7 +29,7 @@ export class ValidationService {
     message: string;
     score: number;
   } {
-    if (! email || email.trim() === '') {
+    if (!email || email.trim() === '') {
       return {
         isValid: false,
         message: 'Email cannot be empty',
@@ -87,7 +89,7 @@ export class ValidationService {
           isValid: true,
           message: `Domain ${domain} has valid MX records`,
           score: 100,
-          mxRecords:  mxRecords. map(r => ({ exchange: r.exchange, priority: r.priority })),
+          mxRecords:  mxRecords. map(r => ({ exchange: r. exchange, priority: r.priority })),
         };
       } else {
         return {
@@ -107,11 +109,16 @@ export class ValidationService {
 
   /**
    * Validation complète d'un email
+   * 
+   * LOGIQUE : 
+   * - isValid = true SI ET SEULEMENT SI syntax + DNS sont OK
+   * - Profanity, Disposable, Role, Random = FLAGS informatifs (réduisent le score mais n'invalident pas)
+   * - Seuls Syntax, DNS, Blacklist peuvent mettre isValid = false
    */
-  async validateEmail(email: string): Promise<any> {
+  async validateEmail(email:  string): Promise<any> {
     const startTime = Date.now();
 
-    // ÉTAPE 0 : Validation syntaxe basique
+    // ========== ÉTAPE 0 : Validation syntaxe ==========
     const syntaxResult = this.validateSyntax(email);
 
     if (!syntaxResult.isValid) {
@@ -120,18 +127,18 @@ export class ValidationService {
         isValid: false,
         score: syntaxResult.score,
         reason: syntaxResult.message,
-        executionTime: Date.now() - startTime,
+        executionTime: `${Date.now() - startTime}ms`,
         risk: {
-          profanity:  'none',
-          overall:  'high',
+          profanity: 'none',
+          overall: 'high',
         },
-        details:  {
+        details: {
           syntax: syntaxResult,
         },
       };
     }
 
-    // ÉTAPE 1 : Vérification WHITELIST (bypass tout)
+    // ========== ÉTAPE 1 : Whitelist (bypass tout) ==========
     const whitelistCheck = await this.whitelistService.isWhitelisted(email);
 
     if (whitelistCheck) {
@@ -140,12 +147,12 @@ export class ValidationService {
         isValid: true,
         score: 100,
         reason: 'Email is whitelisted (trusted)',
-        executionTime: Date.now() - startTime,
+        executionTime: `${Date.now() - startTime}ms`,
         risk: {
           profanity: 'none',
           overall: 'none',
         },
-        details: {
+        details:  {
           syntax: syntaxResult,
           whitelist: {
             isWhitelisted: true,
@@ -155,7 +162,7 @@ export class ValidationService {
       };
     }
 
-    // ÉTAPE 2 :  Vérification BLACKLIST (rejet immédiat)
+    // ========== ÉTAPE 2 : Blacklist (rejet immédiat) ==========
     const blacklistCheck = await this.blacklistService.isBlacklisted(email);
 
     if (blacklistCheck) {
@@ -164,164 +171,188 @@ export class ValidationService {
         isValid: false,
         score: 0,
         reason: 'Email is blacklisted',
-        executionTime: Date.now() - startTime,
+        executionTime: `${Date.now() - startTime}ms`,
         risk: {
           profanity: 'none',
           overall: 'high',
         },
-        details:  {
+        details: {
           syntax: syntaxResult,
           whitelist: { isWhitelisted: false },
           blacklist: {
-            isBlacklisted:  true,
+            isBlacklisted: true,
             message: 'This email or domain is in your blacklist and has been blocked',
           },
         },
       };
     }
 
-    // ÉTAPE 3 :  Détection PROFANITÉ (flagging seulement, pas de rejet)
+    // ========== ÉTAPE 3 : Validation DNS (BLOQUANT) ==========
+    const dnsResult = await this.validateDNS(email);
+
+    if (!dnsResult.isValid) {
+      return {
+        email,
+        isValid: false,
+        score: dnsResult.score,
+        reason: dnsResult. message,
+        executionTime:  `${Date.now() - startTime}ms`,
+        risk: {
+          profanity: 'none',
+          overall: 'high',
+        },
+        details: {
+          syntax: syntaxResult,
+          whitelist: { isWhitelisted:  false },
+          blacklist: { isBlacklisted: false },
+          dns: dnsResult,
+        },
+      };
+    }
+
+    // ========== À CE STADE :  Email VALIDE (syntax + DNS OK) ==========
+    // Les checks suivants sont des FLAGS informatifs
+
+    // ========== ÉTAPE 4 : Collecte des FLAGS ==========
+
+    // 4a. Profanity check (FLAG)
     const profanityCheck = await this.profanityService.checkProfanity(email);
 
-    // Calculer la pénalité de score selon la sévérité
+    // 4b. Disposable check (FLAG)
+    const disposableCheck = await this.disposableEmailService.isDisposable(email);
+
+    // 4c. Role account check (FLAG)
+    const roleCheck = await this.roleAccountService.isRoleAccount(email);
+
+    // 4d. Random detection check (FLAG)
+    const randomCheck = await this.randomDetectionService.checkEmail(email);
+
+    // ========== ÉTAPE 5 : Calcul du score ==========
+    let finalScore = 100; // On part de 100
+
+    // Pénalité profanité
     let profanityPenalty = 0;
     let profanityRisk = 'none';
 
-    if (profanityCheck.hasProfanity) {
+    if (profanityCheck. hasProfanity) {
       if (profanityCheck.severity === 'high') {
-        profanityPenalty = 50;
+        profanityPenalty = 40;
         profanityRisk = 'high';
-      } else if (profanityCheck.severity === 'medium') {
-        profanityPenalty = 30;
+      } else if (profanityCheck. severity === 'medium') {
+        profanityPenalty = 25;
         profanityRisk = 'medium';
       } else if (profanityCheck.severity === 'low') {
         profanityPenalty = 10;
         profanityRisk = 'low';
       }
+      finalScore -= profanityPenalty;
     }
 
-    // ÉTAPE 4 : Pipeline de validation NORMAL
-
-    // 4a. Vérification email jetable
-    const disposableCheck = await this.disposableEmailService. isDisposable(email);
-
-    if (disposableCheck. isDisposable) {
-      // Calculer score avec pénalité profanité
-      const finalScore = Math.max(0, 0 - profanityPenalty);
-      
-      return {
-        email,
-        isValid: false,
-        score: finalScore,
-        reason: 'Disposable email address detected',
-        executionTime: Date.now() - startTime,
-        risk: {
-          profanity: profanityRisk,
-          overall: 'high',
-        },
-        details:  {
-          syntax: syntaxResult,
-          whitelist: { isWhitelisted: false },
-          blacklist: { isBlacklisted: false },
-          profanity: {
-            ... profanityCheck,
-            risk: profanityRisk,
-            penalty: profanityPenalty,
-            message: profanityCheck.hasProfanity
-              ? '⚠️ This email contains potentially inappropriate language.  Could be legitimate (real name) or intentional.'
-              : 'No inappropriate language detected',
-          },
-          disposable: {
-            ... disposableCheck,
-            message: 'This domain is identified as a temporary/disposable email provider',
-          },
-        },
-      };
+    // Pénalité disposable
+    if (disposableCheck.isDisposable) {
+      finalScore -= 30;
     }
 
-    // 4b. Vérification compte à rôle
-    const roleCheck = await this.roleAccountService.isRoleAccount(email);
-
+    // Pénalité role account
     if (roleCheck.isRole) {
-      // Calculer score avec pénalité profanité
-      const baseScore = 20;
-      const finalScore = Math.max(0, baseScore - profanityPenalty);
-      
-      return {
-        email,
-        isValid: true,
-        score: finalScore,
-        reason: 'Role account detected',
-        executionTime:  Date.now() - startTime,
-        risk: {
-          profanity: profanityRisk,
-          overall: this.calculateOverallRisk(finalScore, profanityRisk, false, true),
-        },
-        details:  {
-          syntax: syntaxResult,
-          whitelist: { isWhitelisted: false },
-          blacklist: { isBlacklisted: false },
-          profanity: {
-            ...profanityCheck,
-            risk: profanityRisk,
-            penalty: profanityPenalty,
-            message: profanityCheck.hasProfanity
-              ? '⚠️ This email contains potentially inappropriate language. Could be legitimate (real name) or intentional.'
-              : 'No inappropriate language detected',
-          },
-          disposable: disposableCheck,
-          roleAccount: {
-            ...roleCheck,
-            message: 'This email uses a generic role-based address (e.g., info@, contact@, admin@)',
-          },
-        },
-      };
+      finalScore -= 15;
     }
 
-    // 4c. Validation DNS
-    const dnsResult = await this.validateDNS(email);
+    // Pénalité random detection
+    if (randomCheck.isRandom) {
+      if (randomCheck.score >= 80) {
+        finalScore -= 25;
+      } else if (randomCheck.score >= 60) {
+        finalScore -= 15;
+      } else {
+        finalScore -= 5;
+      }
+    }
 
-    // 4d. Calcul du score final
-    let finalScore = Math.round((syntaxResult.score + dnsResult.score) / 2);
+    // Score minimum = 0
+    finalScore = Math.max(0, finalScore);
 
-    // Appliquer la pénalité profanité
-    finalScore = Math.max(0, finalScore - profanityPenalty);
-
-    // Calculer le risque global
+    // ========== ÉTAPE 6 : Calcul du risque global ==========
     const overallRisk = this.calculateOverallRisk(
       finalScore,
       profanityRisk,
       disposableCheck. isDisposable,
-      roleCheck.isRole
+      roleCheck.isRole,
+      randomCheck.isRandom,
     );
 
+    // ========== ÉTAPE 7 : Construction du résultat ==========
     return {
       email,
-      isValid: dnsResult.isValid,
+      isValid: true, // ✅ VALIDE car syntax + DNS OK
       score: finalScore,
-      reason: dnsResult.isValid ? 'Email appears valid' : dnsResult.message,
-      executionTime: Date.now() - startTime,
+      reason: this.buildReasonMessage(
+        profanityCheck.hasProfanity,
+        disposableCheck.isDisposable,
+        roleCheck.isRole,
+        randomCheck.isRandom,
+      ),
+      executionTime: `${Date.now() - startTime}ms`,
       risk: {
         profanity: profanityRisk,
         overall:  overallRisk,
       },
       details: {
         syntax: syntaxResult,
+        dns: dnsResult,
         whitelist: { isWhitelisted:  false },
         blacklist: { isBlacklisted: false },
         profanity: {
-          ...profanityCheck,
+          ... profanityCheck,
           risk: profanityRisk,
           penalty: profanityPenalty,
-          message:  profanityCheck.hasProfanity
-            ? '⚠️ This email contains potentially inappropriate language. Could be legitimate (real name) or intentional.'
-            :  'No inappropriate language detected',
+          message: profanityCheck.hasProfanity
+            ? '⚠️ This email contains potentially inappropriate language.  Could be legitimate (real name) or intentional.'
+            : 'No inappropriate language detected',
         },
-        dns: dnsResult,
-        disposable: disposableCheck,
-        roleAccount: roleCheck,
+        disposable: {
+          ...disposableCheck,
+          message: disposableCheck.isDisposable
+            ? '⚠️ This domain is identified as a temporary/disposable email provider'
+            : 'Not a disposable email domain',
+        },
+        roleAccount: {
+          ...roleCheck,
+          message: roleCheck. isRole
+            ? '⚠️ This email uses a generic role-based address (e.g., info@, contact@, admin@)'
+            : 'Not a role-based account',
+        },
+        randomDetection: {
+          ...randomCheck,
+          message: randomCheck. isRandom
+            ? '⚠️ Email local part appears to contain random/generated characters'
+            : 'Email local part appears normal',
+        },
       },
     };
+  }
+
+  /**
+   * Construire le message de raison
+   */
+  private buildReasonMessage(
+    hasProfanity: boolean,
+    isDisposable: boolean,
+    isRole: boolean,
+    isRandom: boolean,
+  ): string {
+    const flags:  string[] = [];
+
+    if (hasProfanity) flags.push('profanity detected');
+    if (isDisposable) flags.push('disposable domain');
+    if (isRole) flags.push('role account');
+    if (isRandom) flags.push('random characters detected');
+
+    if (flags.length === 0) {
+      return 'Email is valid with high quality';
+    }
+
+    return `Email is valid but has warnings: ${flags.join(', ')}`;
   }
 
   /**
@@ -331,20 +362,21 @@ export class ValidationService {
     score: number,
     profanityRisk: string,
     isDisposable: boolean,
-    isRole: boolean
+    isRole: boolean,
+    isRandom: boolean,
   ): string {
-    // Score < 30 = Risque élevé
-    if (score < 30 || profanityRisk === 'high') {
+    // Score < 40 = Risque élevé
+    if (score < 40 || profanityRisk === 'high') {
       return 'high';
     }
 
-    // Score < 60 ou profanité medium ou disposable = Risque moyen
-    if (score < 60 || profanityRisk === 'medium' || isDisposable) {
+    // Score < 70 ou disposable/profanité medium/random = Risque moyen
+    if (score < 70 || profanityRisk === 'medium' || isDisposable || isRandom) {
       return 'medium';
     }
 
-    // Score < 80 ou role account = Risque faible
-    if (score < 80 || profanityRisk === 'low' || isRole) {
+    // Score < 85 ou role/profanité low = Risque faible
+    if (score < 85 || profanityRisk === 'low' || isRole) {
       return 'low';
     }
 
