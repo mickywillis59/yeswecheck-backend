@@ -381,7 +381,7 @@
 
       try {
         // Remplace par TON API endpoint
-        const response = await fetch('https://api.yeswecheck.com/v1/emails/validate', {
+        const response = await fetch('https://email.yeswecheck.fr/api/v1/validate', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ email: email })
