@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>YesWeCheck API Tester</title>
+  <title>YesWeCheck API Tester !</title>
   <style>
     * {
       margin: 0;
@@ -12,8 +12,8 @@
     }
 
     body {
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      font-family:  'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background:  linear-gradient(135deg, #667eea 0%, #764ba2 100%);
       min-height: 100vh;
       padding: 20px;
     }
@@ -93,7 +93,7 @@
     .form-group label {
       display: block;
       margin-bottom: 8px;
-      font-weight: 600;
+      font-weight:  600;
       color: #333;
     }
 
@@ -117,8 +117,8 @@
 
     .form-group textarea {
       font-family: monospace;
-      min-height: 100px;
-      resize: vertical;
+      min-height:  100px;
+      resize:  vertical;
     }
 
     .btn {
@@ -158,9 +158,9 @@
       padding: 8px 15px;
       background: #f0f0f0;
       border: 1px solid #ddd;
-      border-radius: 6px;
-      cursor: pointer;
-      font-size: 0.9em;
+      border-radius:  6px;
+      cursor:  pointer;
+      font-size:  0.9em;
       transition: all 0.2s;
     }
 
@@ -181,8 +181,8 @@
     .result-header {
       display: flex;
       justify-content: space-between;
-      align-items:  center;
-      margin-bottom:  15px;
+      align-items: center;
+      margin-bottom: 15px;
     }
 
     .result-header h3 {
@@ -208,14 +208,14 @@
 
     .status-warning {
       background: #ff9800;
-      color:  white;
+      color: white;
     }
 
     .result-box {
       background: #1e1e1e;
       color: #d4d4d4;
       padding: 20px;
-      border-radius: 8px;
+      border-radius:  8px;
       overflow-x: auto;
       font-family: 'Courier New', monospace;
       font-size: 0.95em;
@@ -310,6 +310,24 @@
     .copy-btn:hover {
       background: #45a049;
     }
+
+    .highlight-box {
+      background: #fffbf0;
+      border-left: 4px solid #ffc107;
+      padding: 15px;
+      margin-bottom: 20px;
+      border-radius: 4px;
+    }
+
+    .highlight-box h4 {
+      color:  #f57c00;
+      margin-bottom: 8px;
+    }
+
+    .highlight-box p {
+      color: #555;
+      line-height: 1.6;
+    }
   </style>
 </head>
 <body>
@@ -321,9 +339,10 @@
 
     <div class="tabs">
       <button class="tab active" onclick="switchTab('validate')">📧 Email Validation</button>
+      <button class="tab" onclick="switchTab('firstname')">👤 Firstname Enrichment</button>
       <button class="tab" onclick="switchTab('profanity')">🤬 Profanity Check</button>
       <button class="tab" onclick="switchTab('disposable')">🗑️ Disposable Check</button>
-      <button class="tab" onclick="switchTab('role')">👤 Role Account</button>
+      <button class="tab" onclick="switchTab('role')">👔 Role Account</button>
       <button class="tab" onclick="switchTab('dns')">🌐 DNS Validation</button>
       <button class="tab" onclick="switchTab('syntax')">✅ Syntax Check</button>
     </div>
@@ -333,11 +352,11 @@
       <div id="validate" class="api-section active">
         <div class="info-box">
           <h4>📧 Complete Email Validation</h4>
-          <p>Full validation pipeline including syntax, DNS, profanity, disposable domains, role accounts, and more. </p>
+          <p>Full validation pipeline including syntax, DNS, profanity, disposable domains, role accounts, and more.</p>
         </div>
 
         <div class="examples">
-          <button class="example-btn" onclick="setEmail('validate', 'john.doe@gmail.com')">✅ Valid Email</button>
+          <button class="example-btn" onclick="setEmail('validate', 'john. doe@gmail.com')">✅ Valid Email</button>
           <button class="example-btn" onclick="setEmail('validate', 'fuck@gmail.com')">🤬 Profanity</button>
           <button class="example-btn" onclick="setEmail('validate', 'test@tempmail.com')">🗑️ Disposable</button>
           <button class="example-btn" onclick="setEmail('validate', 'contact@company.com')">👤 Role Account</button>
@@ -356,6 +375,46 @@
         <div id="result-validate" class="result-container"></div>
       </div>
 
+      <!-- Firstname Enrichment -->
+      <div id="firstname" class="api-section">
+        <div class="highlight-box">
+          <h4>👤 Firstname Enrichment & Gender Detection</h4>
+          <p>Extract firstname from email, detect gender (M/F), estimate age based on INSEE birth data (31k+ French firstnames), and distinguish between real names vs surnames (AMBIGUOUS/LASTNAME_ONLY detection).</p>
+        </div>
+
+        <div class="info-box">
+          <h4>🎯 Features</h4>
+          <p>
+            ✅ <strong>Firstname extraction</strong> with confidence score (0-100)<br>
+            ✅ <strong>Gender detection</strong> (M./Mme) with 85%+ confidence threshold<br>
+            ✅ <strong>Age estimation</strong> (P25/P50/P75 quartiles) from INSEE birth years<br>
+            ✅ <strong>LASTNAME_ONLY</strong> detection (dupont, martin as surname → score 1)<br>
+            ✅ <strong>AMBIGUOUS</strong> detection (martin, thomas, gabriel → preserved scores)<br>
+            ✅ <strong>Peak decade</strong> identification (1950s, 1990s, 2010s, etc.)
+          </p>
+        </div>
+
+        <div class="examples">
+          <button class="example-btn" onclick="setEmail('firstname', 'jean.dupont@gmail.com')">✅ Jean (M, 70 ans)</button>
+          <button class="example-btn" onclick="setEmail('firstname', 'marie.martin@gmail.com')">✅ Marie (F, 68 ans)</button>
+          <button class="example-btn" onclick="setEmail('firstname', 'emma.dubois@gmail.com')">✅ Emma (F, 12 ans)</button>
+          <button class="example-btn" onclick="setEmail('firstname', 'gabriel.dupont@gmail.com')">⚠️ Gabriel (AMBIGUOUS)</button>
+          <button class="example-btn" onclick="setEmail('firstname', 'dupont.martin@gmail.com')">⚠️ Martin (LASTNAME_ONLY)</button>
+          <button class="example-btn" onclick="setEmail('firstname', 'thomas.leroy@gmail.com')">⚠️ Thomas (AMBIGUOUS high)</button>
+        </div>
+
+        <div class="form-group">
+          <label for="email-firstname">Email Address</label>
+          <input type="email" id="email-firstname" placeholder="jean.dupont@example.com" value="jean.dupont@gmail.com">
+        </div>
+
+        <button class="btn" onclick="callAPI('firstname')">
+          <span class="btn-text">Enrich Firstname</span>
+        </button>
+
+        <div id="result-firstname" class="result-container"></div>
+      </div>
+
       <!-- Profanity Check -->
       <div id="profanity" class="api-section">
         <div class="info-box">
@@ -364,7 +423,7 @@
         </div>
 
         <div class="examples">
-          <button class="example-btn" onclick="setEmail('profanity', 'john. doe@gmail.com')">✅ Clean</button>
+          <button class="example-btn" onclick="setEmail('profanity', 'john.doe@gmail.com')">✅ Clean</button>
           <button class="example-btn" onclick="setEmail('profanity', 'fuck@test.com')">High Severity</button>
           <button class="example-btn" onclick="setEmail('profanity', 'sh1thead@test.com')">Leetspeak</button>
           <button class="example-btn" onclick="setEmail('profanity', 'connard123@test.fr')">French</button>
@@ -387,7 +446,7 @@
       <div id="disposable" class="api-section">
         <div class="info-box">
           <h4>🗑️ Disposable Email Detection</h4>
-          <p>Check if an email uses a temporary/disposable domain. Database of 13,000+ known providers.</p>
+          <p>Check if an email uses a temporary/disposable domain. Database of 55,000+ known providers.</p>
         </div>
 
         <div class="examples">
@@ -413,12 +472,12 @@
       <!-- Role Account -->
       <div id="role" class="api-section">
         <div class="info-box">
-          <h4>👤 Role Account Detection</h4>
+          <h4>👔 Role Account Detection</h4>
           <p>Detect generic role-based email addresses (info@, contact@, admin@, support@, etc.).</p>
         </div>
 
         <div class="examples">
-          <button class="example-btn" onclick="setEmail('role', 'john. doe@company.com')">✅ Personal</button>
+          <button class="example-btn" onclick="setEmail('role', 'john.doe@company.com')">✅ Personal</button>
           <button class="example-btn" onclick="setEmail('role', 'contact@company.com')">contact@</button>
           <button class="example-btn" onclick="setEmail('role', 'info@company.com')">info@</button>
           <button class="example-btn" onclick="setEmail('role', 'admin@company.com')">admin@</button>
@@ -467,13 +526,13 @@
       <div id="syntax" class="api-section">
         <div class="info-box">
           <h4>✅ Syntax Validation</h4>
-          <p>Basic email syntax validation according to RFC standards.</p>
+          <p>Basic email syntax validation according to RFC standards. </p>
         </div>
 
         <div class="examples">
           <button class="example-btn" onclick="setEmail('syntax', 'valid@email.com')">✅ Valid</button>
           <button class="example-btn" onclick="setEmail('syntax', 'invalid. email')">❌ No @</button>
-          <button class="example-btn" onclick="setEmail('syntax', '@nodomain. com')">❌ No local</button>
+          <button class="example-btn" onclick="setEmail('syntax', '@nodomain.com')">❌ No local</button>
           <button class="example-btn" onclick="setEmail('syntax', 'space @email.com')">❌ Space</button>
           <button class="example-btn" onclick="setEmail('syntax', 'double@@email.com')">❌ Double @</button>
         </div>
@@ -493,7 +552,7 @@
   </div>
 
   <script>
-    const API_BASE = 'http://localhost:3000/api/v1';
+    const API_BASE = 'https://email. yeswecheck.fr/api/v1';
 
     const API_ENDPOINTS = {
       validate: {
@@ -501,8 +560,13 @@
         method: 'POST',
         body: (email) => ({ email })
       },
+      firstname: {
+        url: '/firstname-enrichment/enrich',
+        method: 'POST',
+        body: (email) => ({ email })
+      },
       profanity: {
-        url:  '/profanity/check',
+        url: '/profanity/check',
         method: 'POST',
         body: (email) => ({ email })
       },
@@ -517,7 +581,7 @@
         body: (email) => ({ email })
       },
       dns: {
-        url: '/validate/dns',
+        url:  '/validate/dns',
         method: 'POST',
         body: (email) => ({ email })
       },
@@ -530,7 +594,7 @@
 
     function switchTab(tabName) {
       // Update tabs
-      document.querySelectorAll('.tab').forEach(tab => tab.classList. remove('active'));
+      document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
       event.target.classList.add('active');
 
       // Update sections
@@ -582,21 +646,22 @@
       } catch (error) {
         displayResult(resultContainer, {
           error: error.message,
-          details: 'Failed to connect to API.  Make sure the server is running on port 3000.'
+          details: 'Failed to connect to API.  Make sure the server is running at https://email.yeswecheck.fr'
         }, false);
       } finally {
         btn.disabled = false;
-        btnText.textContent = btnText.textContent.replace(/Loading\. \. \. /, getButtonText(apiName));
+        btnText.textContent = getButtonText(apiName);
       }
     }
 
     function getButtonText(apiName) {
       const texts = {
         validate: 'Validate Email',
+        firstname:  'Enrich Firstname',
         profanity: 'Check Profanity',
         disposable: 'Check Disposable',
         role: 'Check Role Account',
-        dns: 'Validate DNS',
+        dns:  'Validate DNS',
         syntax: 'Check Syntax'
       };
       return texts[apiName] || 'Submit';
@@ -610,7 +675,7 @@
         <div class="result-header">
           <h3>📊 Result</h3>
           <div>
-            <span class="status-badge ${status.class}">${status.text}</span>
+            <span class="status-badge ${status.class}">${status. text}</span>
             <button class="copy-btn" onclick="copyResult(this)" style="margin-left: 10px;">📋 Copy JSON</button>
           </div>
         </div>
@@ -624,6 +689,11 @@
     function getStatus(data, isSuccess) {
       if (! isSuccess) {
         return { class: 'status-error', text: '❌ Error' };
+      }
+
+      // Firstname enrichment success
+      if (data.firstName && data.firstNameConfidence >= 70) {
+        return { class: 'status-success', text: '✅ Success' };
       }
 
       if (data.isValid === false || data.hasProfanity === true || data.isDisposable === true) {
@@ -646,7 +716,7 @@
       return json.replace(/("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?)/g, function (match) {
         let cls = 'json-number';
         if (/^"/.test(match)) {
-          if (/: $/.test(match)) {
+          if (/:  $/.test(match)) {
             cls = 'json-key';
           } else {
             cls = 'json-string';
@@ -666,7 +736,7 @@
 
       navigator.clipboard.writeText(text).then(() => {
         const originalText = btn.textContent;
-        btn.textContent = '✅ Copied!';
+        btn. textContent = '✅ Copied!';
         btn.style.background = '#4caf50';
 
         setTimeout(() => {
