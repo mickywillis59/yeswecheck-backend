@@ -9,6 +9,7 @@ import { DisposableEmailModule } from './disposable-email/disposable-email.modul
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { RandomDetectionModule } from './random-detection/random-detection.module';
+import { FirstnameEnrichmentModule } from './firstname-enrichment/firstname-enrichment.module';
 
 @Module({
   imports: [
@@ -23,6 +24,7 @@ import { RandomDetectionModule } from './random-detection/random-detection.modul
     RoleAccountModule,
     DisposableEmailModule,
     RandomDetectionModule,
+    FirstnameEnrichmentModule,
   ],
   controllers: [AppController],
   providers: [AppService],
