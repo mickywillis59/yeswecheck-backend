@@ -18,7 +18,7 @@ export class ProfanityWord {
 
   @Column({ default: 'en' })
   @Index()
-  language: string; // 'en', 'fr', 'es'... 
+  language: string; // 'en', 'fr', 'es'...
 
   @Column({
     type: 'enum',
@@ -34,7 +34,7 @@ export class ProfanityWord {
   isActive: boolean;
 
   @Column({ nullable: true })
-  category:  string; // 'sexual', 'violence', 'racist', 'general'... 
+  category: string; // 'sexual', 'violence', 'racist', 'general'...
 
   @Column({ nullable: true })
   source: string; // 'ldnoobw', 'french-badwords', 'custom'

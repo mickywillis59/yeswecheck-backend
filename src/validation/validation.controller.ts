@@ -1,4 +1,12 @@
-import { Controller, Post, Body, Get, Query, HttpCode, HttpStatus } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Body,
+  Get,
+  Query,
+  HttpCode,
+  HttpStatus,
+} from '@nestjs/common';
 import { ValidationService } from './validation.service';
 
 @Controller('api/v1/validate')
@@ -32,17 +40,17 @@ export class ValidationController {
             email,
             isValid: false,
             score: 0,
-            reason:  'Validation error',
+            reason: 'Validation error',
             error: error.message,
           };
         }
-      })
+      }),
     );
 
     return {
       total: results.length,
-      valid: results.filter(r => r.isValid).length,
-      invalid: results.filter(r => ! r.isValid).length,
+      valid: results.filter((r) => r.isValid).length,
+      invalid: results.filter((r) => !r.isValid).length,
       results,
     };
   }
@@ -82,7 +90,7 @@ export class ValidationController {
       domain,
       checks: {
         syntax: this.validationService.validateSyntax(email),
-      }
+      },
     };
   }
 
@@ -99,7 +107,7 @@ export class ValidationController {
         'Whitelist hits',
         'Blacklist blocks',
         'Average score',
-      ]
+      ],
     };
   }
 
@@ -140,40 +148,40 @@ export class ValidationController {
         info: [
           'GET /api/v1/validate/test - This endpoint',
           'GET /api/v1/validate/stats - Statistics (coming soon)',
-        ]
+        ],
       },
       examples: {
         fullValidation: {
           method: 'POST',
           url: '/api/v1/validate',
-          body:  { email: 'test@example. com' }
+          body: { email: 'test@example. com' },
         },
         batchValidation: {
           method: 'POST',
           url: '/api/v1/validate/batch',
-          body: { 
-            emails: ['email1@example.com', 'email2@example.com'] 
-          }
+          body: {
+            emails: ['email1@example.com', 'email2@example.com'],
+          },
         },
         addToWhitelist: {
           method: 'POST',
           url: '/api/v1/whitelist',
-          body: { 
-            type: 'email', 
-            value: 'vip@company.com', 
-            reason: 'CEO' 
-          }
+          body: {
+            type: 'email',
+            value: 'vip@company.com',
+            reason: 'CEO',
+          },
         },
         addDomainToBlacklist: {
           method: 'POST',
           url: '/api/v1/blacklist',
-          body:  { 
-            type: 'domain', 
-            value: 'spam.com', 
-            reason: 'Known spammer' 
-          }
-        }
-      }
+          body: {
+            type: 'domain',
+            value: 'spam.com',
+            reason: 'Known spammer',
+          },
+        },
+      },
     };
   }
 
@@ -187,7 +195,7 @@ export class ValidationController {
       status: 'healthy',
       timestamp: new Date().toISOString(),
       service: 'email-validation',
-      version: '2.0'
+      version: '2.0',
     };
   }
 }

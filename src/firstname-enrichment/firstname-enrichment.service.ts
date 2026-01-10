@@ -6,15 +6,38 @@ import { CreateFirstnameDto } from './dto/create-firstname.dto';
 import { EnrichmentResponseDto } from './dto/enrichment-response.dto';
 import Redis from 'ioredis';
 
+interface FirstnameData {
+  maleCount: number;
+  femaleCount: number;
+  totalCount: number;
+  genderRatio: number;
+  dominantGender: string | null;
+  estimatedAge: number | null;
+  ageP25: number | null;
+  ageP50: number | null;
+  ageP75: number | null;
+  peakDecade: string | null;
+}
+
 @Injectable()
 export class FirstnameEnrichmentService implements OnModuleInit {
   private redisClient: Redis;
   private readonly REDIS_PREFIX = 'firstname:';
-  
+
   // Blacklist tokens
   private readonly BLACKLIST_TOKENS = new Set([
-    'contact', 'info', 'admin', 'support', 'hello', 'team', 
-    'sales', 'mail', 'no', 'reply', 'noreply', 'service'
+    'contact',
+    'info',
+    'admin',
+    'support',
+    'hello',
+    'team',
+    'sales',
+    'mail',
+    'no',
+    'reply',
+    'noreply',
+    'service',
   ]);
 
   constructor(
@@ -42,10 +65,10 @@ export class FirstnameEnrichmentService implements OnModuleInit {
   private async loadFirstnamesToRedis() {
     // Check if already loaded
     const keys = await this.redisClient.keys(`${this.REDIS_PREFIX}*`);
-    
+
     if (keys.length === 0) {
       console.log('Loading firstname data to Redis...');
-      
+
       const batchSize = 5000;
       let offset = 0;
       let total = 0;
@@ -60,7 +83,7 @@ export class FirstnameEnrichmentService implements OnModuleInit {
 
         // Store each firstname data in Redis
         const pipeline = this.redisClient.pipeline();
-        
+
         for (const fn of firstnames) {
           const key = `${this.REDIS_PREFIX}${fn.firstname}`;
           const data = {
@@ -81,7 +104,7 @@ export class FirstnameEnrichmentService implements OnModuleInit {
         await pipeline.exec();
         total += firstnames.length;
         offset += batchSize;
-        
+
         console.log(`Loaded ${total} firstnames to Redis...`);
 
         if (firstnames.length < batchSize) break;
@@ -109,18 +132,18 @@ export class FirstnameEnrichmentService implements OnModuleInit {
   private extractLocalPart(email: string): string | null {
     const parts = email.split('@');
     if (parts.length < 2) return null;
-    
+
     let local = parts[0];
-    
+
     // Normalize
     local = this.normalize(local);
-    
+
     // Convert separators to dots (but NOT hyphens - they're for compound names)
     local = local.replace(/[_+]/g, '.');
-    
+
     // Remove non-alphanumeric except dots and hyphens
     local = local.replace(/[^a-z0-9.\-]/g, '');
-    
+
     return local;
   }
 
@@ -142,26 +165,28 @@ export class FirstnameEnrichmentService implements OnModuleInit {
    */
   private tokenize(localPart: string): string[] {
     const tokens = localPart.split('.');
-    
+
     return tokens
-      .map(t => t.trim())
-      .filter(t => t.length > 0)
-      .map(t => this.cleanToken(t))
-      .filter(t => t.length >= 2) // Filter tokens < 2 chars
-      .filter(t => !this.BLACKLIST_TOKENS.has(t)); // Filter blacklist
+      .map((t) => t.trim())
+      .filter((t) => t.length > 0)
+      .map((t) => this.cleanToken(t))
+      .filter((t) => t.length >= 2) // Filter tokens < 2 chars
+      .filter((t) => !this.BLACKLIST_TOKENS.has(t)); // Filter blacklist
   }
 
   /**
    * Get firstname data from Redis
    */
-  private async getFirstnameData(firstname: string): Promise<any | null> {
+  private async getFirstnameData(
+    firstname: string,
+  ): Promise<FirstnameData | null> {
     const key = `${this.REDIS_PREFIX}${firstname}`;
     const data = await this.redisClient.get(key);
-    
+
     if (!data) return null;
-    
+
     try {
-      return JSON.parse(data);
+      return JSON.parse(data) as FirstnameData;
     } catch {
       return null;
     }
@@ -170,25 +195,29 @@ export class FirstnameEnrichmentService implements OnModuleInit {
   /**
    * Calculate score for a token
    */
-  private async calculateScore(token: string, position: number, totalTokens: number): Promise<{ token: string; score: number; data: any | null }> {
+  private async calculateScore(
+    token: string,
+    position: number,
+    totalTokens: number,
+  ): Promise<{ token: string; score: number; data: FirstnameData | null }> {
     const data = await this.getFirstnameData(token);
-    
+
     if (!data) {
       return { token, score: 0, data: null };
     }
 
     const totalCount = data.totalCount || 0;
-    
+
     // Frequency score (0-1)
     const freqScore = Math.min(Math.log10(totalCount + 1) / 5, 1.0);
-    
+
     // Length score
     const len = token.length;
     let lengthScore = 1.0;
     if (len < 3) lengthScore = 0.7;
     else if (len > 15) lengthScore = 0.8;
     else if (len >= 3 && len <= 10) lengthScore = 1.0;
-    
+
     // Position bonus
     let positionBonus = 1.0;
     if (totalTokens === 2 && position === 1) {
@@ -196,37 +225,42 @@ export class FirstnameEnrichmentService implements OnModuleInit {
     } else if (position === 0) {
       positionBonus = 1.1; // First token
     }
-    
+
     // Purity bonus (pure gender vs ambiguous)
     const genderRatio = data.genderRatio || 0;
     const purityBonus = genderRatio > 0.8 ? 1.05 : 1.0;
-    
+
     // Final score (guaranteed 0-100)
-    const finalScore = Math.min(100 * freqScore * lengthScore * positionBonus * purityBonus, 100);
-    
+    const finalScore = Math.min(
+      100 * freqScore * lengthScore * positionBonus * purityBonus,
+      100,
+    );
+
     return { token, score: finalScore, data };
   }
 
   /**
    * Select best token with ambiguity check
    */
-  private selectBestToken(scores: Array<{ token: string; score: number; data: any }>): { token: string; score: number; data: any } | null {
+  private selectBestToken(
+    scores: Array<{ token: string; score: number; data: FirstnameData | null }>,
+  ): { token: string; score: number; data: FirstnameData | null } | null {
     if (scores.length === 0) return null;
-    
+
     // Sort by score descending
     scores.sort((a, b) => b.score - a.score);
-    
+
     const best = scores[0];
     const secondBest = scores.length > 1 ? scores[1] : null;
-    
+
     // Double condition: absolute threshold AND ratio check
     if (best.score < 50) return null;
-    
+
     if (secondBest && best.score < secondBest.score * 1.25) {
       // Too ambiguous
       return null;
     }
-    
+
     return best;
   }
 
@@ -240,7 +274,7 @@ export class FirstnameEnrichmentService implements OnModuleInit {
     debug?: any;
   }> {
     const localPart = this.extractLocalPart(email);
-    
+
     if (!localPart) {
       return {
         firstName: null,
@@ -250,7 +284,7 @@ export class FirstnameEnrichmentService implements OnModuleInit {
     }
 
     const tokens = this.tokenize(localPart);
-    
+
     if (tokens.length === 0) {
       return {
         firstName: null,
@@ -260,41 +294,57 @@ export class FirstnameEnrichmentService implements OnModuleInit {
     }
 
     // Calculate scores for all tokens
-    const scores: Array<{ token: string; score: number; data: any }> = [];
+    const scores: Array<{
+      token: string;
+      score: number;
+      data: FirstnameData | null;
+    }> = [];
     for (let i = 0; i < tokens.length; i++) {
       const result = await this.calculateScore(tokens[i], i, tokens.length);
       scores.push(result);
     }
 
     const bestToken = this.selectBestToken(scores);
-    
+
     if (!bestToken) {
       return {
         firstName: null,
         confidence: 0,
         normalizedInput: localPart,
         debug: {
-          allScores: scores.map(s => ({ token: s.token, score: Math.round(s.score) })),
+          allScores: scores.map((s) => ({
+            token: s.token,
+            score: Math.round(s.score),
+          })),
         },
       };
     }
 
     // Capitalize first letter (handle compound names like jean-pierre)
     const capitalize = (str: string) => {
-      return str.split('-').map(part => 
-        part.charAt(0).toUpperCase() + part.slice(1).toLowerCase()
-      ).join('-');
+      return str
+        .split('-')
+        .map(
+          (part) => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase(),
+        )
+        .join('-');
     };
 
     const secondBestScore = scores.length > 1 ? scores[1].score : 0;
-    const appliedRatio = secondBestScore > 0 ? (bestToken.score / secondBestScore).toFixed(2) : 'N/A';
+    const appliedRatio =
+      secondBestScore > 0
+        ? (bestToken.score / secondBestScore).toFixed(2)
+        : 'N/A';
 
     return {
       firstName: capitalize(bestToken.token),
       confidence: Math.round(bestToken.score),
       normalizedInput: localPart,
       debug: {
-        allScores: scores.map(s => ({ token: s.token, score: Math.round(s.score) })),
+        allScores: scores.map((s) => ({
+          token: s.token,
+          score: Math.round(s.score),
+        })),
         appliedRatio,
       },
     };
@@ -311,14 +361,14 @@ export class FirstnameEnrichmentService implements OnModuleInit {
     const maleCount = data.maleCount || 0;
     const femaleCount = data.femaleCount || 0;
     const total = maleCount + femaleCount;
-    
+
     if (total === 0) {
       return { civility: null, gender: null, genderConfidence: null };
     }
 
     const pMale = maleCount / total;
     const pFemale = femaleCount / total;
-    
+
     if (pMale >= 0.85) {
       return {
         civility: 'M.',
@@ -326,7 +376,7 @@ export class FirstnameEnrichmentService implements OnModuleInit {
         genderConfidence: pMale,
       };
     }
-    
+
     if (pFemale >= 0.85) {
       return {
         civility: 'Mme',
@@ -334,7 +384,7 @@ export class FirstnameEnrichmentService implements OnModuleInit {
         genderConfidence: pFemale,
       };
     }
-    
+
     // Ambiguous (mixed names like Camille, Dominique)
     return {
       civility: null,
@@ -358,7 +408,7 @@ export class FirstnameEnrichmentService implements OnModuleInit {
    */
   async enrich(email: string): Promise<EnrichmentResponseDto> {
     const extraction = await this.extractFirstname(email);
-    
+
     if (!extraction.firstName) {
       return {
         firstName: null,
@@ -377,8 +427,10 @@ export class FirstnameEnrichmentService implements OnModuleInit {
     }
 
     // Get data from Redis
-    const data = await this.getFirstnameData(extraction.firstName.toLowerCase());
-    
+    const data = await this.getFirstnameData(
+      extraction.firstName.toLowerCase(),
+    );
+
     if (!data) {
       return {
         firstName: extraction.firstName,
@@ -399,9 +451,11 @@ export class FirstnameEnrichmentService implements OnModuleInit {
 
     const civilityInfo = this.deduceCivility(data);
     const ageConfidence = this.calculateAgeConfidence(data.totalCount);
-    
-    const warnings = ['Âge basé sur naissances INSEE, pas population vivante actuelle'];
-    
+
+    const warnings = [
+      'Âge basé sur naissances INSEE, pas population vivante actuelle',
+    ];
+
     if (data.totalCount < 1000) {
       warnings.push('Prénom rare, scoring avec confiance réduite');
     }
@@ -413,11 +467,14 @@ export class FirstnameEnrichmentService implements OnModuleInit {
       gender: civilityInfo.gender,
       genderConfidence: civilityInfo.genderConfidence,
       presumedAge: data.estimatedAge,
-      presumedAgeRange: data.ageP25 && data.ageP50 && data.ageP75 ? {
-        p25: data.ageP25,
-        p50: data.ageP50,
-        p75: data.ageP75,
-      } : null,
+      presumedAgeRange:
+        data.ageP25 && data.ageP50 && data.ageP75
+          ? {
+              p25: data.ageP25,
+              p50: data.ageP50,
+              p75: data.ageP75,
+            }
+          : null,
       presumedAgeConfidence: ageConfidence,
       peakDecade: data.peakDecade,
       detectedFrom: 'email_local_part',
@@ -430,7 +487,9 @@ export class FirstnameEnrichmentService implements OnModuleInit {
   /**
    * Import batch of firstnames
    */
-  async importBatch(firstnames: CreateFirstnameDto[]): Promise<{ imported: number; skipped: number }> {
+  async importBatch(
+    firstnames: CreateFirstnameDto[],
+  ): Promise<{ imported: number; skipped: number }> {
     let imported = 0;
     let skipped = 0;
 

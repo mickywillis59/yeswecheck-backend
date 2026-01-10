@@ -24,8 +24,12 @@ describe('FirstnameEnrichmentController', () => {
       ],
     }).compile();
 
-    controller = module.get<FirstnameEnrichmentController>(FirstnameEnrichmentController);
-    service = module.get<FirstnameEnrichmentService>(FirstnameEnrichmentService);
+    controller = module.get<FirstnameEnrichmentController>(
+      FirstnameEnrichmentController,
+    );
+    service = module.get<FirstnameEnrichmentService>(
+      FirstnameEnrichmentService,
+    );
   });
 
   it('should be defined', () => {
@@ -46,7 +50,9 @@ describe('FirstnameEnrichmentController', () => {
         peakDecade: '1950s',
         detectedFrom: 'email_local_part',
         normalizedInput: 'jean',
-        warnings: ['Âge basé sur naissances INSEE, pas population vivante actuelle'],
+        warnings: [
+          'Âge basé sur naissances INSEE, pas population vivante actuelle',
+        ],
       };
 
       jest.spyOn(service, 'enrich').mockResolvedValue(mockResult);

@@ -1,4 +1,9 @@
-import { Injectable, ConflictException, NotFoundException, OnModuleInit } from '@nestjs/common';
+import {
+  Injectable,
+  ConflictException,
+  NotFoundException,
+  OnModuleInit,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import Redis from 'ioredis';
@@ -45,13 +50,13 @@ export class ProfanityService implements OnModuleInit {
     }
 
     // Grouper par langue
-    const wordsByLang:  Record<string, string[]> = {};
+    const wordsByLang: Record<string, string[]> = {};
 
     for (const word of words) {
       if (!wordsByLang[word.language]) {
         wordsByLang[word.language] = [];
       }
-      wordsByLang[word.language].push(word. word.toLowerCase());
+      wordsByLang[word.language].push(word.word.toLowerCase());
     }
 
     // Charger dans Redis
@@ -62,7 +67,7 @@ export class ProfanityService implements OnModuleInit {
       await this.redisClient.del(key);
 
       if (wordList.length > 0) {
-        await this.redisClient. sadd(key, ...wordList);
+        await this.redisClient.sadd(key, ...wordList);
       }
     }
 
@@ -80,7 +85,7 @@ export class ProfanityService implements OnModuleInit {
    * Ajouter un mot manuellement
    */
   async create(createDto: CreateProfanityDto): Promise<ProfanityWord> {
-    const normalizedWord = createDto.word. toLowerCase().trim();
+    const normalizedWord = createDto.word.toLowerCase().trim();
 
     const existing = await this.profanityRepository.findOne({
       where: { word: normalizedWord, language: createDto.language },
@@ -95,7 +100,7 @@ export class ProfanityService implements OnModuleInit {
     const profanityWord = this.profanityRepository.create({
       word: normalizedWord,
       language: createDto.language || 'en',
-      severity:  createDto.severity || 'medium',
+      severity: createDto.severity || 'medium',
       category: createDto.category,
       isCustom: true,
       isActive: true,
@@ -114,7 +119,7 @@ export class ProfanityService implements OnModuleInit {
   /**
    * Lister tous les mots
    */
-  async findAll(language?:  string): Promise<ProfanityWord[]> {
+  async findAll(language?: string): Promise<ProfanityWord[]> {
     if (language) {
       return this.profanityRepository.find({
         where: { language, isActive: true },
@@ -122,7 +127,7 @@ export class ProfanityService implements OnModuleInit {
       });
     }
     return this.profanityRepository.find({
-      where: { isActive:  true },
+      where: { isActive: true },
       order: { language: 'ASC', word: 'ASC' },
     });
   }
@@ -159,7 +164,7 @@ export class ProfanityService implements OnModuleInit {
     word.isActive = false;
 
     // Retirer de Redis
-    const key = `${this.REDIS_KEY_PREFIX}:${word. language}`;
+    const key = `${this.REDIS_KEY_PREFIX}:${word.language}`;
     await this.redisClient.srem(key, word.word);
 
     return this.profanityRepository.save(word);
@@ -190,9 +195,9 @@ export class ProfanityService implements OnModuleInit {
   }> {
     const localPart = email.split('@')[0];
 
-    if (! localPart) {
+    if (!localPart) {
       return {
-        hasProfanity:  false,
+        hasProfanity: false,
         words: [],
         severity: 'none',
         normalizedLocal: '',
@@ -203,7 +208,7 @@ export class ProfanityService implements OnModuleInit {
     const normalized = this.normalize(localPart);
 
     // Chercher dans toutes les langues (EN + FR)
-    const foundWords:  string[] = [];
+    const foundWords: string[] = [];
 
     // Check EN
     const wordsEN = await this.findProfanityInText(normalized, 'en');
@@ -227,7 +232,7 @@ export class ProfanityService implements OnModuleInit {
 
     return {
       hasProfanity: true,
-      words: [... new Set(foundWords)], // Dédupliquer
+      words: [...new Set(foundWords)], // Dédupliquer
       severity,
       normalizedLocal: normalized,
     };
@@ -256,13 +261,16 @@ export class ProfanityService implements OnModuleInit {
   /**
    * Chercher des mots profanes dans un texte (via Redis < 1ms)
    */
-  private async findProfanityInText(text: string, language: string): Promise<string[]> {
+  private async findProfanityInText(
+    text: string,
+    language: string,
+  ): Promise<string[]> {
     const key = `${this.REDIS_KEY_PREFIX}:${language}`;
 
     // Récupérer tous les mots de cette langue depuis Redis
     const allWords = await this.redisClient.smembers(key);
 
-    const found:  string[] = [];
+    const found: string[] = [];
 
     for (const word of allWords) {
       if (text.includes(word)) {
@@ -278,12 +286,12 @@ export class ProfanityService implements OnModuleInit {
    */
   private async getMaxSeverity(words: string[]): Promise<string> {
     const severities = await Promise.all(
-      words. map(async (word) => {
+      words.map(async (word) => {
         const profanityWord = await this.profanityRepository.findOne({
           where: { word, isActive: true },
         });
-        return profanityWord?. severity || 'medium';
-      })
+        return profanityWord?.severity || 'medium';
+      }),
     );
 
     if (severities.includes('high')) return 'high';
@@ -297,7 +305,7 @@ export class ProfanityService implements OnModuleInit {
   async importBulk(data: {
     words: string[];
     language: string;
-    severity?:  'low' | 'medium' | 'high';
+    severity?: 'low' | 'medium' | 'high';
     source?: string;
   }): Promise<{ imported: number; skipped: number }> {
     let imported = 0;
@@ -309,19 +317,19 @@ export class ProfanityService implements OnModuleInit {
     for (let i = 0; i < words.length; i += batchSize) {
       const batch = words.slice(i, i + batchSize);
 
-      const entities:  Array<{
+      const entities: Array<{
         word: string;
         language: string;
-        severity:  'low' | 'medium' | 'high';
+        severity: 'low' | 'medium' | 'high';
         isCustom: boolean;
         isActive: boolean;
-        source:  string;
+        source: string;
       }> = [];
 
       for (const word of batch) {
         const normalizedWord = word.toLowerCase().trim();
 
-        if (! normalizedWord || normalizedWord.length < 3) {
+        if (!normalizedWord || normalizedWord.length < 3) {
           skipped++;
           continue;
         }
@@ -345,7 +353,7 @@ export class ProfanityService implements OnModuleInit {
         });
       }
 
-      if (entities. length > 0) {
+      if (entities.length > 0) {
         await this.profanityRepository
           .createQueryBuilder()
           .insert()
@@ -363,7 +371,7 @@ export class ProfanityService implements OnModuleInit {
       }
 
       console.log(
-        `Progress: ${i + batch.length}/${words.length} (imported: ${imported}, skipped: ${skipped})`
+        `Progress: ${i + batch.length}/${words.length} (imported: ${imported}, skipped: ${skipped})`,
       );
     }
 
@@ -373,7 +381,9 @@ export class ProfanityService implements OnModuleInit {
   /**
    * Compter les mots
    */
-  async count(language?: string): Promise<{ total: number; byLanguage?:  Record<string, number> }> {
+  async count(
+    language?: string,
+  ): Promise<{ total: number; byLanguage?: Record<string, number> }> {
     if (language) {
       const total = await this.profanityRepository.count({
         where: { language, isActive: true },
@@ -385,7 +395,7 @@ export class ProfanityService implements OnModuleInit {
       where: { isActive: true },
     });
 
-    const byLanguage:  Record<string, number> = {};
+    const byLanguage: Record<string, number> = {};
     for (const word of all) {
       byLanguage[word.language] = (byLanguage[word.language] || 0) + 1;
     }

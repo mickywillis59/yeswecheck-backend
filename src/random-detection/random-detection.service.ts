@@ -13,8 +13,8 @@ export interface RandomAnalysis {
     length: number;
   };
   threshold: {
-    entropy:  number;
-    digitRatio:  number;
+    entropy: number;
+    digitRatio: number;
     vowelRatio: number;
     consecutiveConsonants: number;
   };
@@ -40,16 +40,16 @@ export class RandomDetectionService {
    * Calcul de l'entropie de Shannon
    */
   private shannonEntropy(str: string): number {
-    if (! str || str.length === 0) return 0;
+    if (!str || str.length === 0) return 0;
 
-    const freq:  Record<string, number> = {};
+    const freq: Record<string, number> = {};
     for (const c of str) {
       freq[c] = (freq[c] || 0) + 1;
     }
 
     let entropy = 0;
     for (const c in freq) {
-      const p = freq[c] / str. length;
+      const p = freq[c] / str.length;
       entropy -= p * Math.log2(p);
     }
 
@@ -63,8 +63,8 @@ export class RandomDetectionService {
     let max = 0;
     let current = 0;
 
-    for (const char of str. toLowerCase()) {
-      if (/[a-z]/.test(char) && ! this.vowels.has(char)) {
+    for (const char of str.toLowerCase()) {
+      if (/[a-z]/.test(char) && !this.vowels.has(char)) {
         current++;
         max = Math.max(max, current);
       } else {
@@ -76,7 +76,7 @@ export class RandomDetectionService {
   }
 
   /**
-   * Détection basique :  local part aléatoire ? 
+   * Détection basique :  local part aléatoire ?
    * Logique "2 sur 4" : si au moins 2 critères sont remplis → random
    */
   private looksRandomLocalPart(local: string): boolean {
@@ -102,7 +102,7 @@ export class RandomDetectionService {
       criteriaMetCount++;
     }
 
-    if (vowelRatio < this. THRESHOLDS.vowelRatio) {
+    if (vowelRatio < this.THRESHOLDS.vowelRatio) {
       criteriaMetCount++;
     }
 
@@ -122,12 +122,12 @@ export class RandomDetectionService {
     const clean = localPart.toLowerCase().replace(/[^a-z0-9]/g, '');
 
     const entropy = this.shannonEntropy(clean);
-    const digitRatio = clean.length > 0 
-      ? clean.replace(/[^0-9]/g, '').length / clean.length 
-      : 0;
-    const vowelRatio = clean. length > 0 
-      ?  clean.replace(/[^aeiouy]/g, '').length / clean.length 
-      :  0;
+    const digitRatio =
+      clean.length > 0 ? clean.replace(/[^0-9]/g, '').length / clean.length : 0;
+    const vowelRatio =
+      clean.length > 0
+        ? clean.replace(/[^aeiouy]/g, '').length / clean.length
+        : 0;
     const consecutiveConsonants = this.getMaxConsecutiveConsonants(clean);
 
     const isRandom = this.looksRandomLocalPart(localPart);
@@ -143,7 +143,7 @@ export class RandomDetectionService {
 
       // Ratio de chiffres (0-25 points)
       if (digitRatio > this.THRESHOLDS.digitRatio) {
-        score += Math.min(25, (digitRatio - this. THRESHOLDS.digitRatio) * 80);
+        score += Math.min(25, (digitRatio - this.THRESHOLDS.digitRatio) * 80);
       }
 
       // Ratio de voyelles inversé (0-25 points)
@@ -152,8 +152,12 @@ export class RandomDetectionService {
       }
 
       // Consonnes consécutives (0-25 points)
-      if (consecutiveConsonants >= this. THRESHOLDS.consecutiveConsonants) {
-        score += Math.min(25, (consecutiveConsonants - this.THRESHOLDS.consecutiveConsonants + 1) * 5);
+      if (consecutiveConsonants >= this.THRESHOLDS.consecutiveConsonants) {
+        score += Math.min(
+          25,
+          (consecutiveConsonants - this.THRESHOLDS.consecutiveConsonants + 1) *
+            5,
+        );
       }
     }
 
@@ -161,20 +165,20 @@ export class RandomDetectionService {
 
     // Construire le message
     let details = '';
-    if (! isRandom) {
+    if (!isRandom) {
       details = 'Email appears legitimate';
     } else {
-      const reasons:  string[] = [];
+      const reasons: string[] = [];
       if (entropy > this.THRESHOLDS.entropy) {
         reasons.push(`high entropy (${entropy.toFixed(2)})`);
       }
-      if (digitRatio > this. THRESHOLDS.digitRatio) {
+      if (digitRatio > this.THRESHOLDS.digitRatio) {
         reasons.push(`too many digits (${(digitRatio * 100).toFixed(0)}%)`);
       }
       if (vowelRatio < this.THRESHOLDS.vowelRatio) {
         reasons.push(`few vowels (${(vowelRatio * 100).toFixed(0)}%)`);
       }
-      if (consecutiveConsonants >= this. THRESHOLDS.consecutiveConsonants) {
+      if (consecutiveConsonants >= this.THRESHOLDS.consecutiveConsonants) {
         reasons.push(`${consecutiveConsonants} consecutive consonants`);
       }
       details = `Likely random: ${reasons.join(', ')}`;
@@ -186,16 +190,16 @@ export class RandomDetectionService {
       isRandom,
       score,
       metrics: {
-        entropy:  Math.round(entropy * 100) / 100,
+        entropy: Math.round(entropy * 100) / 100,
         digitRatio: Math.round(digitRatio * 100) / 100,
-        vowelRatio:  Math.round(vowelRatio * 100) / 100,
+        vowelRatio: Math.round(vowelRatio * 100) / 100,
         consecutiveConsonants,
         length: clean.length,
       },
       threshold: {
         entropy: this.THRESHOLDS.entropy,
-        digitRatio: this. THRESHOLDS.digitRatio,
-        vowelRatio:  this.THRESHOLDS.vowelRatio,
+        digitRatio: this.THRESHOLDS.digitRatio,
+        vowelRatio: this.THRESHOLDS.vowelRatio,
         consecutiveConsonants: this.THRESHOLDS.consecutiveConsonants,
       },
       details,

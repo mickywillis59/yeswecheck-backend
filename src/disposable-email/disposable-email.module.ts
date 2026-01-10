@@ -11,4 +11,3 @@ import { DisposableEmailController } from './disposable-email.controller';
   exports: [DisposableEmailService],
 })
 export class DisposableEmailModule {}
-

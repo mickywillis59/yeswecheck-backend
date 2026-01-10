@@ -256,7 +256,7 @@ export class RoleAccountService implements OnModuleInit {
 
   /**
    * Détecter si un email est un role account
-   * 
+   *
    * Détection en 3 niveaux:
    * 1. Match exact (confidence: 1.0)
    * 2. Match par token (confidence: 0.95)
@@ -272,8 +272,8 @@ export class RoleAccountService implements OnModuleInit {
 
     // Normalisation FR-friendly
     const localPart = localPartRaw
-      .replace(/_/g, '-')     // contact_fr → contact-fr
-      .replace(/\d+$/g, '')   // facturation2024 → facturation
+      .replace(/_/g, '-') // contact_fr → contact-fr
+      .replace(/\d+$/g, '') // facturation2024 → facturation
       .trim();
 
     // Tokenisation (sépare par -, ., +)
@@ -311,10 +311,7 @@ export class RoleAccountService implements OnModuleInit {
     // Ex: serviceclient → match "service"
     // SEULEMENT pour patterns >= 4 chars (évite faux positifs: smith → it)
     for (const pattern of patterns) {
-      if (
-        pattern.pattern.length >= 4 &&
-        localPart.includes(pattern.pattern)
-      ) {
+      if (pattern.pattern.length >= 4 && localPart.includes(pattern.pattern)) {
         return {
           isRole: true,
           pattern: pattern.pattern,

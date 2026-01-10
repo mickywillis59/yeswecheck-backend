@@ -1,4 +1,9 @@
-import { Injectable, ConflictException, NotFoundException, OnModuleInit } from '@nestjs/common';
+import {
+  Injectable,
+  ConflictException,
+  NotFoundException,
+  OnModuleInit,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { DisposableDomain } from './disposable-domain.entity';
@@ -37,7 +42,7 @@ export class DisposableEmailService implements OnModuleInit {
 
     if (count === 0) {
       console.log('Loading disposable domains to Redis...');
-      
+
       // Charger par batch de 5000 pour éviter surcharge mémoire
       const batchSize = 5000;
       let offset = 0;
@@ -53,8 +58,8 @@ export class DisposableEmailService implements OnModuleInit {
 
         if (domains.length === 0) break;
 
-        const domainList = domains.map(d => d.domain);
-        
+        const domainList = domains.map((d) => d.domain);
+
         if (domainList.length > 0) {
           await this.redisClient.sadd(this.REDIS_KEY, ...domainList);
           total += domainList.length;
@@ -119,7 +124,9 @@ export class DisposableEmailService implements OnModuleInit {
   async findOne(id: string): Promise<DisposableDomain> {
     const domain = await this.disposableRepository.findOne({ where: { id } });
     if (!domain) {
-      throw new NotFoundException(`Disposable domain with ID "${id}" not found`);
+      throw new NotFoundException(
+        `Disposable domain with ID "${id}" not found`,
+      );
     }
     return domain;
   }
@@ -207,7 +214,9 @@ export class DisposableEmailService implements OnModuleInit {
   /**
    * Import bulk (depuis fichier)
    */
-  async importBulk(domains: string[]): Promise<{ imported: number; skipped: number }> {
+  async importBulk(
+    domains: string[],
+  ): Promise<{ imported: number; skipped: number }> {
     let imported = 0;
     let skipped = 0;
 
@@ -216,7 +225,7 @@ export class DisposableEmailService implements OnModuleInit {
 
     for (let i = 0; i < domains.length; i += batchSize) {
       const batch = domains.slice(i, i + batchSize);
-      
+
       // Typage explicite du tableau
       const entities: Array<{
         domain: string;
@@ -258,13 +267,15 @@ export class DisposableEmailService implements OnModuleInit {
           .execute();
 
         // Ajouter à Redis
-        const domainList = entities.map(e => e.domain);
+        const domainList = entities.map((e) => e.domain);
         await this.redisClient.sadd(this.REDIS_KEY, ...domainList);
 
         imported += entities.length;
       }
 
-      console.log(`Progress: ${i + batch.length}/${domains.length} (imported: ${imported}, skipped: ${skipped})`);
+      console.log(
+        `Progress: ${i + batch.length}/${domains.length} (imported: ${imported}, skipped: ${skipped})`,
+      );
     }
 
     return { imported, skipped };
@@ -274,7 +285,9 @@ export class DisposableEmailService implements OnModuleInit {
    * Compter les domaines
    */
   async count(): Promise<{ db: number; redis: number }> {
-    const db = await this.disposableRepository.count({ where: { isActive: true } });
+    const db = await this.disposableRepository.count({
+      where: { isActive: true },
+    });
     const redis = await this.redisClient.scard(this.REDIS_KEY);
     return { db, redis };
   }

@@ -8,8 +8,8 @@ import { BlacklistService } from '../blacklist/blacklist.service';
 import { ProfanityService } from '../profanity/profanity.service';
 import { RandomDetectionService } from '../random-detection/random-detection.service';
 
-const resolveMx = promisify(dns. resolveMx);
-const resolve4 = promisify(dns. resolve4);
+const resolveMx = promisify(dns.resolveMx);
+const resolve4 = promisify(dns.resolve4);
 const resolve6 = promisify(dns.resolve6);
 
 type DnsReasonCode =
@@ -28,7 +28,7 @@ type TypoDomainSuggestion =
   | {
       detected: true;
       inputDomain: string;
-      suggestion:  string;
+      suggestion: string;
       distance: number;
       confidence: number;
       matchedBy: TypoMatchedBy;
@@ -39,9 +39,9 @@ type TypoDomainSuggestion =
     };
 
 type DomainEntry = {
-  base: string;        // ex: "gmail"
-  tld: string;         // ex: ".com"
-  popularity: number;  // 0-100, plus haut = plus populaire
+  base: string; // ex: "gmail"
+  tld: string; // ex: ".com"
+  popularity: number; // 0-100, plus haut = plus populaire
 };
 
 /**
@@ -50,7 +50,7 @@ type DomainEntry = {
  */
 const POPULAR_DOMAINS: DomainEntry[] = [
   // ========== GMAIL ==========
-  { base:  'gmail', tld: '. com', popularity: 100 },
+  { base: 'gmail', tld: '. com', popularity: 100 },
 
   // ========== OUTLOOK ==========
   { base: 'outlook', tld: '.com', popularity: 95 },
@@ -65,7 +65,7 @@ const POPULAR_DOMAINS: DomainEntry[] = [
   { base: 'yahoo', tld: '.fr', popularity: 75 },
 
   // ========== ORANGE (FAI Français) ==========
-  { base: 'orange', tld:  '.fr', popularity: 92 },
+  { base: 'orange', tld: '.fr', popularity: 92 },
   { base: 'wanadoo', tld: '. fr', popularity: 70 },
 
   // ========== FREE (FAI Français) ==========
@@ -83,7 +83,7 @@ const POPULAR_DOMAINS: DomainEntry[] = [
   { base: 'mac', tld: '.com', popularity: 60 },
 
   // ========== LIVE / MSN ==========
-  { base:  'live', tld: '. com', popularity: 78 },
+  { base: 'live', tld: '. com', popularity: 78 },
   { base: 'live', tld: '.fr', popularity: 72 },
   { base: 'msn', tld: '.com', popularity: 70 },
 
@@ -103,7 +103,7 @@ const POPULAR_DOMAINS: DomainEntry[] = [
   { base: 'bbox', tld: '.fr', popularity: 75 },
 
   // ========== ANCIENS FAI FRANÇAIS ==========
-  { base:  'club-internet', tld: '.fr', popularity: 60 },
+  { base: 'club-internet', tld: '.fr', popularity: 60 },
   { base: 'neuf', tld: '. fr', popularity: 62 },
   { base: 'numericable', tld: '.fr', popularity: 58 },
   { base: 'aliceadsl', tld: '.fr', popularity: 55 },
@@ -111,15 +111,15 @@ const POPULAR_DOMAINS: DomainEntry[] = [
   { base: 'caramail', tld: '.com', popularity: 50 },
 
   // ========== AUTRES GLOBAUX ==========
-  { base:  'mail', tld: '. com', popularity: 60 },
+  { base: 'mail', tld: '. com', popularity: 60 },
   { base: 'yandex', tld: '.ru', popularity: 65 },
   { base: 'yandex', tld: '.com', popularity: 58 },
   { base: 'zoho', tld: '.com', popularity: 62 },
-  { base: 'qq', tld:  '.com', popularity: 55 },
+  { base: 'qq', tld: '.com', popularity: 55 },
   { base: 'naver', tld: '.com', popularity: 52 },
   { base: 'daum', tld: '.net', popularity: 50 },
   { base: 'comcast', tld: '.net', popularity: 58 },
-  { base: 'verizon', tld:  '.net', popularity: 55 },
+  { base: 'verizon', tld: '.net', popularity: 55 },
   { base: 'att', tld: '.net', popularity: 54 },
   { base: 'btinternet', tld: '.com', popularity: 52 },
   { base: 'mail', tld: '.ru', popularity: 50 },
@@ -134,7 +134,7 @@ export class ValidationService {
   constructor(
     private readonly disposableEmailService: DisposableEmailService,
     private readonly roleAccountService: RoleAccountService,
-    private readonly whitelistService:  WhitelistService,
+    private readonly whitelistService: WhitelistService,
     private readonly blacklistService: BlacklistService,
     private readonly profanityService: ProfanityService,
     private readonly randomDetectionService: RandomDetectionService,
@@ -145,7 +145,9 @@ export class ValidationService {
   // =========================
 
   private normalizeEmailForTypo(email: string): string {
-    return String(email || '').trim().toLowerCase();
+    return String(email || '')
+      .trim()
+      .toLowerCase();
   }
 
   private extractDomainLoosely(email: string): string | null {
@@ -154,17 +156,20 @@ export class ValidationService {
     if (at === -1) return null;
     const rawDomain = e.slice(at + 1).trim();
     if (!rawDomain) return null;
-    return rawDomain. replace(/\.$/, '');
+    return rawDomain.replace(/\.$/, '');
   }
 
-  private splitBaseAndTld(domain: string): { base: string; tld:  string | null } {
+  private splitBaseAndTld(domain: string): {
+    base: string;
+    tld: string | null;
+  } {
     const d = String(domain || '')
       .trim()
       .toLowerCase()
       .replace(/\.$/, '');
 
-    if (! d) return { base: '', tld: null };
-    if (! d.includes('.')) return { base: d, tld: null };
+    if (!d) return { base: '', tld: null };
+    if (!d.includes('.')) return { base: d, tld: null };
 
     const lastDot = d.lastIndexOf('.');
     const base = d.slice(0, lastDot).trim();
@@ -183,7 +188,7 @@ export class ValidationService {
   /**
    * Damerau-Levenshtein (optimal string alignment) avec early exit
    */
-  private damerauLevenshtein(a:  string, b: string, maxDist: number): number {
+  private damerauLevenshtein(a: string, b: string, maxDist: number): number {
     if (a === b) return 0;
     const alen = a.length;
     const blen = b.length;
@@ -192,13 +197,15 @@ export class ValidationService {
     if (alen === 0) return blen;
     if (blen === 0) return alen;
 
-    const dp: number[][] = Array. from({ length: alen + 1 }, () => new Array(blen + 1).fill(0));
+    const dp: number[][] = Array.from({ length: alen + 1 }, () =>
+      new Array(blen + 1).fill(0),
+    );
 
     for (let i = 0; i <= alen; i++) dp[i][0] = i;
     for (let j = 0; j <= blen; j++) dp[0][j] = j;
 
     for (let i = 1; i <= alen; i++) {
-      let rowMin = Number. POSITIVE_INFINITY;
+      let rowMin = Number.POSITIVE_INFINITY;
 
       for (let j = 1; j <= blen; j++) {
         const cost = a[i - 1] === b[j - 1] ? 0 : 1;
@@ -234,19 +241,21 @@ export class ValidationService {
     const dotCount = (domainRaw.match(/\./g) || []).length;
     if (dotCount >= 2) return { detected: false };
 
-    const { base:  inputBase0, tld: inputTld } = this.splitBaseAndTld(domainRaw);
+    const { base: inputBase0, tld: inputTld } = this.splitBaseAndTld(domainRaw);
     const inputBase = (inputBase0 || '').replace(/\s+/g, '');
     if (!inputBase) return { detected: false };
 
     const maxDist = this.maxDistanceFor(inputBase);
 
     // 1️⃣ Filtrer par TLD si présent
-    let candidates:  DomainEntry[] = [];
+    let candidates: DomainEntry[] = [];
     let matchedBy: TypoMatchedBy = 'NO_TLD_GUESS';
 
     if (inputTld) {
       const tldNorm = inputTld.toLowerCase();
-      candidates = POPULAR_DOMAINS.filter(d => d.tld. toLowerCase() === tldNorm);
+      candidates = POPULAR_DOMAINS.filter(
+        (d) => d.tld.toLowerCase() === tldNorm,
+      );
       matchedBy = 'TLD_MATCH';
 
       // Fallback : si aucun candidat avec ce TLD, prendre tous
@@ -260,13 +269,13 @@ export class ValidationService {
     }
 
     // 2️⃣ Calculer les distances
-    const scored:  Array<{
+    const scored: Array<{
       domain: DomainEntry;
-      distance:  number;
+      distance: number;
     }> = [];
 
     for (const domain of candidates) {
-      const dist = this. damerauLevenshtein(inputBase, domain.base, maxDist);
+      const dist = this.damerauLevenshtein(inputBase, domain.base, maxDist);
       if (dist <= maxDist) {
         scored.push({ domain, distance: dist });
       }
@@ -284,18 +293,22 @@ export class ValidationService {
     const second = scored[1];
 
     // Garde-fou ambiguïté : le 2e doit être clairement moins bon
-    if (second && second.distance === best.distance && second.domain.popularity === best. domain.popularity) {
+    if (
+      second &&
+      second.distance === best.distance &&
+      second.domain.popularity === best.domain.popularity
+    ) {
       return { detected: false };
     }
 
     // Si input exact match, pas de suggestion
     const fullDomain = `${best.domain.base}${best.domain.tld}`;
-    if (domainRaw. toLowerCase() === fullDomain.toLowerCase()) {
-      return { detected:  false };
+    if (domainRaw.toLowerCase() === fullDomain.toLowerCase()) {
+      return { detected: false };
     }
 
     // 4️⃣ Calcul confiance
-    const maxLen = Math.max(inputBase. length, best.domain.base. length);
+    const maxLen = Math.max(inputBase.length, best.domain.base.length);
     let confidence = 1 - best.distance / maxLen;
 
     // Bonus si TLD match
@@ -312,13 +325,14 @@ export class ValidationService {
     return {
       detected: true,
       inputDomain: domainRaw,
-      suggestion:  fullDomain,
+      suggestion: fullDomain,
       distance: best.distance,
       confidence,
       matchedBy,
-      note: matchedBy === 'NO_TLD_GUESS' 
-        ? 'No TLD provided, guessed best domain' 
-        : undefined,
+      note:
+        matchedBy === 'NO_TLD_GUESS'
+          ? 'No TLD provided, guessed best domain'
+          : undefined,
     };
   }
 
@@ -326,71 +340,139 @@ export class ValidationService {
   // SYNTAX
   // =========================
 
-  validateSyntax(email: string): { isValid: boolean; message: string; score: number } {
+  validateSyntax(email: string): {
+    isValid: boolean;
+    message: string;
+    score: number;
+  } {
     if (!email || email.trim() === '') {
       return { isValid: false, message: 'Email cannot be empty', score: 0 };
     }
 
     if (/\s/.test(email)) {
-      return { isValid: false, message: 'Email cannot contain spaces', score: 10 };
+      return {
+        isValid: false,
+        message: 'Email cannot contain spaces',
+        score: 10,
+      };
     }
 
     if (/[\u0000-\u001F\u007F]/.test(email)) {
-      return { isValid: false, message: 'Email contains invalid control characters', score: 10 };
+      return {
+        isValid: false,
+        message: 'Email contains invalid control characters',
+        score: 10,
+      };
     }
 
     if (email.length > 254) {
-      return { isValid: false, message: 'Email is too long (max 254 characters)', score: 10 };
+      return {
+        isValid: false,
+        message: 'Email is too long (max 254 characters)',
+        score: 10,
+      };
     }
 
     const atCount = (email.match(/@/g) || []).length;
     if (atCount !== 1) {
-      return { isValid: false, message: 'Email must contain a single @', score: 20 };
+      return {
+        isValid: false,
+        message: 'Email must contain a single @',
+        score: 20,
+      };
     }
 
     const [local, domain] = email.split('@');
 
-    if (! local) return { isValid: false, message:  'Missing local part', score: 20 };
-    if (local.length > 64) return { isValid: false, message:  'Local part is too long (max 64)', score: 10 };
+    if (!local)
+      return { isValid: false, message: 'Missing local part', score: 20 };
+    if (local.length > 64)
+      return {
+        isValid: false,
+        message: 'Local part is too long (max 64)',
+        score: 10,
+      };
 
     if (local.startsWith('.') || local.endsWith('.') || local.includes('..')) {
-      return { isValid: false, message: 'Local part has invalid dot placement', score: 20 };
+      return {
+        isValid: false,
+        message: 'Local part has invalid dot placement',
+        score: 20,
+      };
     }
 
     if (!/^[A-Za-z0-9!#$%&'*+/=?^_`{|}~.-]+$/.test(local)) {
-      return { isValid: false, message: 'Local part contains invalid characters', score: 20 };
+      return {
+        isValid: false,
+        message: 'Local part contains invalid characters',
+        score: 20,
+      };
     }
 
-    if (! domain) return { isValid: false, message: 'Missing domain', score: 20 };
-    if (domain.length > 253) return { isValid: false, message: 'Domain is too long', score: 10 };
+    if (!domain)
+      return { isValid: false, message: 'Missing domain', score: 20 };
+    if (domain.length > 253)
+      return { isValid: false, message: 'Domain is too long', score: 10 };
 
-    if (domain.startsWith('.') || domain.endsWith('.') || domain.includes('..')) {
-      return { isValid: false, message: 'Domain has invalid dot placement', score: 20 };
+    if (
+      domain.startsWith('.') ||
+      domain.endsWith('.') ||
+      domain.includes('..')
+    ) {
+      return {
+        isValid: false,
+        message: 'Domain has invalid dot placement',
+        score: 20,
+      };
     }
 
-    if (! domain.includes('.')) {
-      return { isValid: false, message: 'Domain must contain a dot', score: 20 };
+    if (!domain.includes('.')) {
+      return {
+        isValid: false,
+        message: 'Domain must contain a dot',
+        score: 20,
+      };
     }
 
     const labels = domain.split('.');
     for (const label of labels) {
-      if (! label. length) {
-        return { isValid: false, message: 'Domain contains empty label', score: 20 };
+      if (!label.length) {
+        return {
+          isValid: false,
+          message: 'Domain contains empty label',
+          score: 20,
+        };
       }
       if (label.length > 63) {
-        return { isValid: false, message: 'Domain label is too long (max 63)', score: 10 };
+        return {
+          isValid: false,
+          message: 'Domain label is too long (max 63)',
+          score: 10,
+        };
       }
       if (!/^[A-Za-z0-9-]+$/.test(label)) {
-        return { isValid: false, message: 'Domain contains invalid characters', score: 20 };
+        return {
+          isValid: false,
+          message: 'Domain contains invalid characters',
+          score: 20,
+        };
       }
       if (label.startsWith('-') || label.endsWith('-')) {
-        return { isValid:  false, message: 'Domain label has invalid hyphen placement', score: 20 };
+        return {
+          isValid: false,
+          message: 'Domain label has invalid hyphen placement',
+          score: 20,
+        };
       }
     }
 
     const tld = labels[labels.length - 1];
     if (tld.length < 2) {
-      return { isValid: false, message: 'Top-level domain is too short', score: 20 };
+      return {
+        isValid: false,
+        message: 'Top-level domain is too short',
+        score: 20,
+      };
     }
 
     return { isValid: true, message: 'Email syntax is valid', score: 100 };
@@ -404,7 +486,13 @@ export class ValidationService {
     return Promise.race([
       promise,
       new Promise<T>((_, reject) =>
-        setTimeout(() => reject(Object.assign(new Error('DNS_TIMEOUT'), { code: 'DNS_TIMEOUT' })), ms),
+        setTimeout(
+          () =>
+            reject(
+              Object.assign(new Error('DNS_TIMEOUT'), { code: 'DNS_TIMEOUT' }),
+            ),
+          ms,
+        ),
       ),
     ]);
   }
@@ -415,10 +503,10 @@ export class ValidationService {
     if (!raw.includes('@')) return null;
 
     const parts = raw.split('@');
-    const domainRaw = parts[parts.length - 1]?. trim();
+    const domainRaw = parts[parts.length - 1]?.trim();
     if (!domainRaw) return null;
 
-    const domain = domainRaw. toLowerCase().replace(/\.$/, '');
+    const domain = domainRaw.toLowerCase().replace(/\.$/, '');
     if (!domain) return null;
 
     return domain;
@@ -429,7 +517,7 @@ export class ValidationService {
     message: string;
     score: number;
     reasonCode: DnsReasonCode;
-    dnsTimeout?:  boolean;
+    dnsTimeout?: boolean;
     isNullMX?: boolean;
     hasA?: boolean;
     hasAAAA?: boolean;
@@ -449,27 +537,28 @@ export class ValidationService {
     const TIMEOUT_MS = 1500;
 
     try {
-      const mxRaw:  any[] = await this.withTimeout(
+      const mxRaw: any[] = await this.withTimeout(
         resolveMx(domain) as Promise<any[]>,
         TIMEOUT_MS,
       );
 
       const mxRecords = (mxRaw || [])
-        .map(r => ({
+        .map((r) => ({
           exchange: String(r.exchange || '').trim(),
           priority: r.priority,
         }))
-        .filter(r => r.exchange. length > 0);
+        .filter((r) => r.exchange.length > 0);
 
-      const isNullMX = mxRecords.some(r => r.exchange === '.');
+      const isNullMX = mxRecords.some((r) => r.exchange === '.');
 
       if (isNullMX) {
         return {
           isValid: false,
-          message: "Ce domaine indique explicitement qu'il ne reçoit pas d'emails (Null MX).",
+          message:
+            "Ce domaine indique explicitement qu'il ne reçoit pas d'emails (Null MX).",
           score: 10,
           reasonCode: 'NULL_MX',
-          isNullMX:  true,
+          isNullMX: true,
           mxRecords,
         };
       }
@@ -479,8 +568,8 @@ export class ValidationService {
           isValid: true,
           message: `Domain ${domain} has valid MX records`,
           score: 100,
-          reasonCode:  'MX_FOUND',
-          isNullMX:  false,
+          reasonCode: 'MX_FOUND',
+          isNullMX: false,
           mxRecords,
         };
       }
@@ -493,16 +582,26 @@ export class ValidationService {
       this.withTimeout(resolve6(domain) as Promise<any>, TIMEOUT_MS),
     ]);
 
-    const hasA = aRes.status === 'fulfilled' && Array.isArray(aRes.value) && aRes.value.length > 0;
-    const hasAAAA = aaaaRes.status === 'fulfilled' && Array.isArray(aaaaRes.value) && aaaaRes.value.length > 0;
+    const hasA =
+      aRes.status === 'fulfilled' &&
+      Array.isArray(aRes.value) &&
+      aRes.value.length > 0;
+    const hasAAAA =
+      aaaaRes.status === 'fulfilled' &&
+      Array.isArray(aaaaRes.value) &&
+      aaaaRes.value.length > 0;
 
-    const aTimedOut = aRes.status === 'rejected' && String((aRes.reason as any)?.code) === 'DNS_TIMEOUT';
-    const aaaaTimedOut = aaaaRes. status === 'rejected' && String((aaaaRes.reason as any)?.code) === 'DNS_TIMEOUT';
+    const aTimedOut =
+      aRes.status === 'rejected' && String(aRes.reason?.code) === 'DNS_TIMEOUT';
+    const aaaaTimedOut =
+      aaaaRes.status === 'rejected' &&
+      String(aaaaRes.reason?.code) === 'DNS_TIMEOUT';
 
     if (aTimedOut || aaaaTimedOut) {
       return {
         isValid: true,
-        message: "Le DNS a mis trop de temps à répondre (timeout). On considère le domaine OK par prudence.",
+        message:
+          'Le DNS a mis trop de temps à répondre (timeout). On considère le domaine OK par prudence.',
         score: 50,
         reasonCode: 'TIMEOUT',
         dnsTimeout: true,
@@ -532,7 +631,10 @@ export class ValidationService {
     };
   }
 
-  private getDnsMultiplier(dnsReasonCode: DnsReasonCode, dnsTimeout?:  boolean): number {
+  private getDnsMultiplier(
+    dnsReasonCode: DnsReasonCode,
+    dnsTimeout?: boolean,
+  ): number {
     if (dnsTimeout || dnsReasonCode === 'TIMEOUT') return 0.85;
     if (dnsReasonCode === 'A_FALLBACK') return 0.92;
     return 1.0;
@@ -549,7 +651,7 @@ export class ValidationService {
 
     const syntaxResult = this.validateSyntax(email);
 
-    if (! syntaxResult.isValid) {
+    if (!syntaxResult.isValid) {
       return {
         email,
         isValid: false,
@@ -580,12 +682,13 @@ export class ValidationService {
           profanity: 'none',
           overall: 'none',
         },
-        details:  {
+        details: {
           syntax: syntaxResult,
           typoDomain,
           whitelist: {
             isWhitelisted: true,
-            message: 'This email or domain is in your whitelist and bypasses all validation checks',
+            message:
+              'This email or domain is in your whitelist and bypasses all validation checks',
           },
         },
       };
@@ -596,7 +699,7 @@ export class ValidationService {
     if (blacklistCheck) {
       return {
         email,
-        isValid:  false,
+        isValid: false,
         score: 0,
         reason: 'Email is blacklisted',
         executionTime: `${Date.now() - startTime}ms`,
@@ -609,8 +712,9 @@ export class ValidationService {
           typoDomain,
           whitelist: { isWhitelisted: false },
           blacklist: {
-            isBlacklisted:  true,
-            message: 'This email or domain is in your blacklist and has been blocked',
+            isBlacklisted: true,
+            message:
+              'This email or domain is in your blacklist and has been blocked',
           },
         },
       };
@@ -622,7 +726,7 @@ export class ValidationService {
       return {
         email,
         isValid: false,
-        score: dnsResult. score,
+        score: dnsResult.score,
         reason: dnsResult.message,
         executionTime: `${Date.now() - startTime}ms`,
         risk: {
@@ -632,7 +736,7 @@ export class ValidationService {
         details: {
           syntax: syntaxResult,
           typoDomain,
-          whitelist: { isWhitelisted:  false },
+          whitelist: { isWhitelisted: false },
           blacklist: { isBlacklisted: false },
           dns: dnsResult,
         },
@@ -640,7 +744,8 @@ export class ValidationService {
     }
 
     const profanityCheck = await this.profanityService.checkProfanity(email);
-    const disposableCheck = await this.disposableEmailService.isDisposable(email);
+    const disposableCheck =
+      await this.disposableEmailService.isDisposable(email);
     const roleCheck = await this.roleAccountService.isRoleAccount(email);
     const randomCheck = await this.randomDetectionService.checkEmail(email);
 
@@ -649,11 +754,11 @@ export class ValidationService {
     let profanityPenalty = 0;
     let profanityRisk = 'none';
 
-    if (profanityCheck. hasProfanity) {
+    if (profanityCheck.hasProfanity) {
       if (profanityCheck.severity === 'high') {
         profanityPenalty = 40;
         profanityRisk = 'high';
-      } else if (profanityCheck. severity === 'medium') {
+      } else if (profanityCheck.severity === 'medium') {
         profanityPenalty = 25;
         profanityRisk = 'medium';
       } else if (profanityCheck.severity === 'low') {
@@ -683,13 +788,16 @@ export class ValidationService {
 
     finalScore = Math.max(0, finalScore);
 
-    const dnsMultiplier = this.getDnsMultiplier(dnsResult.reasonCode, dnsResult.dnsTimeout);
+    const dnsMultiplier = this.getDnsMultiplier(
+      dnsResult.reasonCode,
+      dnsResult.dnsTimeout,
+    );
     finalScore = Math.max(0, Math.round(finalScore * dnsMultiplier));
 
     const overallRisk = this.calculateOverallRisk(
       finalScore,
       profanityRisk,
-      disposableCheck. isDisposable,
+      disposableCheck.isDisposable,
       roleCheck.isRole,
       randomCheck.isRandom,
     );
@@ -707,16 +815,16 @@ export class ValidationService {
       executionTime: `${Date.now() - startTime}ms`,
       risk: {
         profanity: profanityRisk,
-        overall:  overallRisk,
+        overall: overallRisk,
       },
       details: {
         syntax: syntaxResult,
         typoDomain,
         dns: {
-          ... dnsResult,
+          ...dnsResult,
           dnsMultiplier,
         },
-        whitelist: { isWhitelisted:  false },
+        whitelist: { isWhitelisted: false },
         blacklist: { isBlacklisted: false },
         profanity: {
           ...profanityCheck,
@@ -727,14 +835,14 @@ export class ValidationService {
             : 'No inappropriate language detected',
         },
         disposable: {
-          ... disposableCheck,
+          ...disposableCheck,
           message: disposableCheck.isDisposable
             ? '⚠️ This domain is identified as a temporary/disposable email provider'
             : 'Not a disposable email domain',
         },
         roleAccount: {
           ...roleCheck,
-          message: roleCheck. isRole
+          message: roleCheck.isRole
             ? '⚠️ This email uses a generic role-based address (e.g., info@, contact@, admin@)'
             : 'Not a role-based account',
         },
@@ -754,7 +862,7 @@ export class ValidationService {
     isRole: boolean,
     isRandom: boolean,
   ): string {
-    const flags:  string[] = [];
+    const flags: string[] = [];
 
     if (hasProfanity) flags.push('profanity detected');
     if (isDisposable) flags.push('disposable domain');

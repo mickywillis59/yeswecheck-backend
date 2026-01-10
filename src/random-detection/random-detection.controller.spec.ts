@@ -9,7 +9,9 @@ describe('RandomDetectionController', () => {
       controllers: [RandomDetectionController],
     }).compile();
 
-    controller = module.get<RandomDetectionController>(RandomDetectionController);
+    controller = module.get<RandomDetectionController>(
+      RandomDetectionController,
+    );
   });
 
   it('should be defined', () => {

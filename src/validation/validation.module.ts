@@ -15,7 +15,7 @@ import { RandomDetectionModule } from '../random-detection/random-detection.modu
     WhitelistModule,
     BlacklistModule,
     ProfanityModule,
-    RandomDetectionModule, 
+    RandomDetectionModule,
   ],
   controllers: [ValidationController],
   providers: [ValidationService],

@@ -87,7 +87,7 @@ export class ProfanityController {
     const result = await this.profanityService.checkProfanity(body.email);
     return {
       email: body.email,
-      ... result,
+      ...result,
     };
   }
 
@@ -103,7 +103,7 @@ export class ProfanityController {
       language: string;
       severity?: 'low' | 'medium' | 'high';
       source?: string;
-    }
+    },
   ) {
     return this.profanityService.importBulk(body);
   }

@@ -23,10 +23,10 @@ export class User {
   @Column({ nullable: true })
   lastname: string;
 
-  @Column({ 
-    type: 'enum', 
-    enum: ['admin', 'manager', 'user'], 
-    default: 'user' 
+  @Column({
+    type: 'enum',
+    enum: ['admin', 'manager', 'user'],
+    default: 'user',
   })
   role: string;
 
