@@ -1,964 +1,502 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-  <meta charset="UTF-8" />
-  <title>API Tester</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Validateur Email Pro - yeswecheck.com</title>
   <style>
     :root {
-      --bg: #050816;
-      --bg-elevated: #0b1020;
-      --bg-soft: #111827;
+      --bg: #0a0f23;
+      --bg-card: rgba(15,23,42,0.95);
       --primary: #6366f1;
-      --primary-soft: rgba(99,102,241,0.15);
-      --accent: #22c55e;
-      --border: #1f2937;
-      --text-main: #f9fafb;
-      --text-muted: #9ca3af;
-      --danger: #f97373;
-      --radius-lg: 14px;
-      --radius-md: 10px;
-      --shadow-soft: 0 18px 45px rgba(15,23,42,0.7);
-      --shadow-chip: 0 8px 20px rgba(15,23,42,0.7);
-      --transition-fast: 150ms ease-out;
+      --success: #10b981;
+      --warning: #f59e0b;
+      --danger: #ef4444;
+      --text: #f8fafc;
+      --text-muted: #94a3b8;
+      --border: rgba(148,163,184,0.2);
+      --gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      --radius: 20px;
+      --shadow: 0 25px 50px -12px rgba(0,0,0,0.5);
     }
 
-    * {
-      box-sizing: border-box;
-    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
 
     body {
-      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: var(--bg);
+      color: var(--text);
       min-height: 100vh;
-      font-family: system-ui, -apple-system, BlinkMacSystemFont, "SF Pro Text", sans-serif;
-      background: radial-gradient(circle at top, #111827 0, #020617 55%, #000 100%);
-      color: var(--text-main);
       display: flex;
       flex-direction: column;
       align-items: center;
-      padding: 32px 16px;
+      padding: 2rem 1rem;
     }
 
-    .app-shell {
+    .hero {
+      text-align: center;
+      max-width: 600px;
+      margin-bottom: 3rem;
+    }
+
+    h1 {
+      font-size: clamp(2rem, 5vw, 3.5rem);
+      background: var(--gradient);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin-bottom: 1rem;
+      font-weight: 800;
+    }
+
+    .tagline {
+      font-size: 1.3rem;
+      color: var(--text-muted);
+      margin-bottom: 2rem;
+      line-height: 1.6;
+    }
+
+    .input-section {
+      background: var(--bg-card);
+      border-radius: var(--radius);
+      padding: 2.5rem;
+      box-shadow: var(--shadow);
+      border: 1px solid var(--border);
+      max-width: 500px;
       width: 100%;
-      max-width: 1160px;
-      display: grid;
-      grid-template-columns: minmax(0, 1.1fr) minmax(0, 1.2fr);
-      gap: 20px;
-      align-items: stretch;
+      margin-bottom: 2rem;
     }
 
-    @media (max-width: 960px) {
-      .app-shell {
-        grid-template-columns: minmax(0, 1fr);
-      }
-    }
-
-    .panel {
-      background: linear-gradient(145deg, rgba(15,23,42,0.96), rgba(15,23,42,0.88));
-      border-radius: 22px;
-      border: 1px solid rgba(148,163,184,0.12);
-      box-shadow: var(--shadow-soft);
-      padding: 18px 18px 16px;
+    .email-input-wrapper {
       position: relative;
-      overflow: hidden;
+      margin-bottom: 1.5rem;
     }
 
-    .panel::before {
-      content: "";
+    #email-input {
+      width: 100%;
+      padding: 1rem 1rem 1rem 3.5rem;
+      border: 2px solid transparent;
+      border-radius: 16px;
+      background: rgba(255,255,255,0.05);
+      color: var(--text);
+      font-size: 1.2rem;
+      backdrop-filter: blur(20px);
+      transition: all 0.3s ease;
+    }
+
+    #email-input:focus {
+      outline: none;
+      border-color: var(--primary);
+      box-shadow: 0 0 0 4px rgba(99,102,241,0.1);
+      background: rgba(255,255,255,0.08);
+    }
+
+    #email-input::placeholder {
+      color: var(--text-muted);
+    }
+
+    .input-icon {
       position: absolute;
-      inset: -120px;
-      background:
-        radial-gradient(circle at 0 0, rgba(56,189,248,0.08), transparent 60%),
-        radial-gradient(circle at 100% 0, rgba(129,140,248,0.08), transparent 60%);
+      left: 1rem;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 24px;
+      height: 24px;
       opacity: 0.7;
-      pointer-events: none;
     }
 
-    .panel-inner {
-      position: relative;
-      z-index: 1;
-    }
-
-    .panel-header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      margin-bottom: 14px;
-    }
-
-    .panel-title {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      font-size: 14px;
-      letter-spacing: 0.06em;
-      text-transform: uppercase;
-      color: var(--text-muted);
-    }
-
-    .panel-title-chip {
-      width: 8px;
-      height: 8px;
-      border-radius: 999px;
-      background: conic-gradient(from 160deg, #22c55e, #22c55e, #4ade80, #a7f3d0, #22c55e);
-      box-shadow: 0 0 10px rgba(34,197,94,0.85);
-    }
-
-    .panel-subtitle {
-      font-size: 11px;
-      color: var(--text-muted);
-      opacity: 0.9;
-    }
-
-    /* Request header */
-    .badge-row {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      margin-bottom: 12px;
-      gap: 8px;
-    }
-
-    .badge-group {
+    .examples {
       display: flex;
       flex-wrap: wrap;
-      gap: 6px;
-      align-items: center;
+      gap: 0.5rem;
+      margin-bottom: 1.5rem;
     }
 
-    .badge {
-      font-size: 11px;
-      padding: 3px 8px;
-      border-radius: 999px;
-      border: 1px solid rgba(148,163,184,0.28);
+    .example-btn {
+      padding: 0.5rem 1rem;
+      border: 1px solid var(--border);
+      border-radius: 25px;
+      background: transparent;
       color: var(--text-muted);
-      display: inline-flex;
-      align-items: center;
-      gap: 5px;
-      background: linear-gradient(135deg, rgba(15,23,42,0.9), rgba(15,23,42,0.6));
-      box-shadow: var(--shadow-chip);
-    }
-
-    .badge-pill {
-      background: radial-gradient(circle at 0 0, rgba(96,165,250,0.28), rgba(15,23,42,1));
-      border-color: rgba(129,140,248,0.55);
-      color: #e5e7eb;
-    }
-
-    .badge-dot {
-      width: 6px;
-      height: 6px;
-      border-radius: 999px;
-      background: linear-gradient(135deg, #60a5fa, #a855f7);
-      box-shadow: 0 0 10px rgba(96,165,250,0.8);
-    }
-
-    .badge-pill.badge-green {
-      background: radial-gradient(circle at 0 0, rgba(34,197,94,0.32), rgba(15,23,42,1));
-      border-color: rgba(52,211,153,0.7);
-      color: #bbf7d0;
-    }
-
-    /* Form */
-    .field-grid {
-      display: grid;
-      grid-template-columns: auto 1fr;
-      gap: 8px;
-      align-items: center;
-      margin-bottom: 10px;
-    }
-
-    .label {
-      font-size: 12px;
-      color: var(--text-muted);
-      white-space: nowrap;
-    }
-
-    .method-select {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      background: radial-gradient(circle at 0 0, rgba(52,211,153,0.08), rgba(15,23,42,0.95));
-      border-radius: 999px;
-      padding: 4px 5px;
-      border: 1px solid rgba(52,211,153,0.5);
-      box-shadow: var(--shadow-chip);
-      font-size: 11px;
-    }
-
-    .method-pill {
-      font-size: 11px;
-      padding: 3px 8px;
-      border-radius: 999px;
-      border: 1px solid rgba(15,23,42,0.9);
-      background: rgba(15,23,42,0.8);
-      color: var(--text-muted);
+      font-size: 0.9rem;
       cursor: pointer;
-      transition: background var(--transition-fast), color var(--transition-fast), transform var(--transition-fast), border-color var(--transition-fast);
+      transition: all 0.2s ease;
     }
 
-    .method-pill.active {
-      background: radial-gradient(circle at 0 0, rgba(52,211,153,0.8), #065f46);
-      color: #ecfdf5;
-      border-color: rgba(110,231,183,0.9);
-      transform: translateY(-0.5px);
-      box-shadow: 0 0 14px rgba(16,185,129,0.8);
+    .example-btn:hover, .example-btn.active {
+      background: var(--primary);
+      color: white;
+      border-color: var(--primary);
     }
 
-    .hotkey {
-      font-size: 10px;
-      padding: 1px 5px;
-      border-radius: 999px;
-      border: 1px solid rgba(148,163,184,0.35);
-      color: rgba(209,213,219,0.9);
-      background: rgba(15,23,42,0.9);
-    }
-
-    .input {
+    .validate-btn {
       width: 100%;
-      border-radius: 999px;
-      padding: 8px 12px;
-      border: 1px solid rgba(55,65,81,0.9);
-      background: radial-gradient(circle at 0 0, rgba(15,23,42,0.9), #020617);
-      color: var(--text-main);
-      font-size: 13px;
-      outline: none;
-      transition: border-color 120ms ease-out, box-shadow 120ms ease-out, background 120ms ease-out;
-    }
-
-    .input::placeholder {
-      color: rgba(148,163,184,0.7);
-    }
-
-    .input:focus {
-      border-color: rgba(129,140,248,0.8);
-      box-shadow: 0 0 0 1px rgba(129,140,248,0.5);
-      background: radial-gradient(circle at 0 0, rgba(79,70,229,0.16), #020617);
-    }
-
-    .input-sm {
-      border-radius: 10px;
-      padding: 6px 9px;
-      font-size: 12px;
-    }
-
-    .textarea {
-      width: 100%;
-      border-radius: 14px;
-      padding: 9px 11px;
-      border: 1px solid rgba(55,65,81,0.9);
-      background: radial-gradient(circle at 0 0, rgba(15,23,42,0.9), #020617);
-      color: var(--text-main);
-      font-size: 12px;
-      resize: vertical;
-      min-height: 120px;
-      outline: none;
-      font-family: ui-monospace, Menlo, Monaco, Consolas, "SF Mono", monospace;
-    }
-
-    .textarea::placeholder {
-      color: rgba(148,163,184,0.7);
-    }
-
-    .textarea:focus {
-      border-color: rgba(129,140,248,0.8);
-      box-shadow: 0 0 0 1px rgba(129,140,248,0.55);
-      background: radial-gradient(circle at 0 0, rgba(79,70,229,0.16), #020617);
-    }
-
-    .row {
-      display: flex;
-      gap: 8px;
-      align-items: center;
-    }
-
-    .row-wrap {
-      flex-wrap: wrap;
-    }
-
-    .row-space {
-      justify-content: space-between;
-    }
-
-    .meta-chip {
-      font-size: 11px;
-      padding: 3px 6px;
-      border-radius: 999px;
-      border: 1px solid rgba(75,85,99,0.9);
-      color: var(--text-muted);
-      background: rgba(15,23,42,0.9);
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-    }
-
-    .meta-chip strong {
-      font-weight: 500;
-      color: #e5e7eb;
-    }
-
-    .divider {
-      height: 1px;
-      background: linear-gradient(to right, transparent, rgba(55,65,81,0.9), transparent);
-      margin: 14px 0 8px;
-    }
-
-    /* Buttons */
-    .primary-btn {
-      border-radius: 999px;
+      padding: 1.2rem;
+      background: var(--gradient);
+      color: white;
       border: none;
-      padding: 7px 18px;
-      font-size: 13px;
-      font-weight: 500;
-      letter-spacing: 0.03em;
-      text-transform: uppercase;
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      color: #0b1120;
-      background: linear-gradient(135deg, #a855f7, #6366f1, #22c55e);
-      box-shadow:
-        0 0 0 1px rgba(191,219,254,0.2),
-        0 18px 35px rgba(88,28,135,0.5);
+      border-radius: 16px;
+      font-size: 1.1rem;
+      font-weight: 600;
       cursor: pointer;
-      position: relative;
-      overflow: hidden;
-      white-space: nowrap;
+      transition: all 0.3s ease;
+      box-shadow: 0 10px 25px rgba(102,126,234,0.4);
     }
 
-    .primary-btn span {
-      position: relative;
-      z-index: 1;
+    .validate-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 20px 40px rgba(102,126,234,0.5);
     }
 
-    .primary-btn::before {
-      content: "";
-      position: absolute;
-      inset: 0;
-      background: radial-gradient(circle at 0 0, rgba(255,255,255,0.4), transparent 60%);
-      opacity: 0;
-      transition: opacity 120ms ease-out;
+    .validate-btn:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+      transform: none;
     }
 
-    .primary-btn:hover::before {
-      opacity: 1;
+    .results {
+      max-width: 800px;
+      width: 100%;
     }
 
-    .primary-btn:active {
-      transform: translateY(1px);
-      box-shadow:
-        0 0 0 1px rgba(191,219,254,0.2),
-        0 11px 18px rgba(15,23,42,0.9);
+    .result-card {
+      background: var(--bg-card);
+      border-radius: var(--radius);
+      padding: 2rem;
+      margin-bottom: 1.5rem;
+      border-left: 5px solid var(--primary);
+      box-shadow: var(--shadow);
+      border: 1px solid var(--border);
+      display: none;
     }
 
-    .primary-btn-icon {
-      width: 17px;
-      height: 17px;
-      border-radius: 999px;
-      background: radial-gradient(circle at 30% 0, #f9fafb, #d1fae5 55%, #22c55e 100%);
+    .result-card.show {
+      display: block;
+      animation: slideIn 0.4s ease-out;
+    }
+
+    @keyframes slideIn {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .overall-status {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .status-badge {
+      padding: 0.75rem 1.5rem;
+      border-radius: 50px;
+      font-weight: 600;
+      font-size: 1rem;
+    }
+
+    .status-success { background: rgba(16,185,129,0.2); color: var(--success); border: 2px solid var(--success); }
+    .status-fail { background: rgba(239,68,68,0.2); color: var(--danger); border: 2px solid var(--danger); }
+    .status-warning { background: rgba(245,158,11,0.2); color: var(--warning); border: 2px solid var(--warning); }
+
+    .status-icon {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
       display: flex;
       align-items: center;
       justify-content: center;
+      font-size: 1.2rem;
+      font-weight: bold;
     }
 
-    .primary-btn-icon svg {
-      width: 11px;
-      height: 11px;
-      stroke: #022c22;
+    .status-success .status-icon { background: var(--success); color: white; }
+    .status-fail .status-icon { background: var(--danger); color: white; }
+    .status-warning .status-icon { background: var(--warning); color: white; }
+
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 1.5rem;
+      margin-bottom: 2rem;
     }
 
-    .secondary-btn {
-      border-radius: 999px;
-      border: 1px solid rgba(148,163,184,0.55);
-      padding: 6px 12px;
-      font-size: 11px;
-      color: var(--text-muted);
-      background: rgba(15,23,42,0.9);
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      cursor: pointer;
-      transition: border-color var(--transition-fast), color var(--transition-fast), background var(--transition-fast);
-    }
-
-    .secondary-btn:hover {
-      border-color: rgba(148,163,184,0.9);
-      color: #e5e7eb;
-      background: radial-gradient(circle at 0 0, rgba(148,163,184,0.15), rgba(15,23,42,0.9));
-    }
-
-    .secondary-btn svg {
-      width: 12px;
-      height: 12px;
-      stroke: rgba(156,163,175,0.85);
-    }
-
-    /* Response panel */
-    .status-badge {
-      font-size: 11px;
-      padding: 3px 7px;
-      border-radius: 999px;
-      border: 1px solid rgba(52,211,153,0.6);
-      background: radial-gradient(circle at 0 0, rgba(34,197,94,0.35), rgba(15,23,42,0.95));
-      color: #bbf7d0;
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-    }
-
-    .status-dot {
-      width: 7px;
-      height: 7px;
-      border-radius: 999px;
-      background: radial-gradient(circle at 30% 0, #bbf7d0, #22c55e);
-      box-shadow: 0 0 10px rgba(34,197,94,0.9);
-    }
-
-    .response-meta {
+    .feature-item {
       display: flex;
-      flex-wrap: wrap;
-      gap: 6px;
       align-items: center;
-      font-size: 11px;
-      color: var(--text-muted);
+      gap: 1rem;
+      padding: 1rem;
+      background: rgba(99,102,241,0.1);
+      border-radius: 12px;
     }
 
-    .response-meta strong {
-      color: #e5e7eb;
+    .feature-icon {
+      width: 48px;
+      height: 48px;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.2rem;
+      font-weight: bold;
+    }
+
+    .feature-success .feature-icon { background: rgba(16,185,129,0.3); color: var(--success); }
+    .feature-fail .feature-icon { background: rgba(239,68,68,0.3); color: var(--danger); }
+    .feature-warning .feature-icon { background: rgba(245,158,11,0.3); color: var(--warning); }
+
+    .feature-label {
       font-weight: 500;
+      margin-bottom: 0.25rem;
     }
 
-    .tab-row {
-      display: flex;
-      align-items: center;
-      gap: 4px;
-      margin-bottom: 8px;
+    .feature-detail {
+      font-size: 0.9rem;
+      color: var(--text-muted);
     }
 
-    .tab {
-      font-size: 11px;
-      padding: 3px 9px;
-      border-radius: 999px;
-      border: 1px solid transparent;
-      color: rgba(148,163,184,0.9);
+    .json-toggle {
       background: transparent;
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      padding: 0.5rem 1rem;
+      border-radius: 25px;
       cursor: pointer;
-      transition: background var(--transition-fast), color var(--transition-fast), border-color var(--transition-fast);
+      font-size: 0.9rem;
+      margin-bottom: 1rem;
+      transition: all 0.2s ease;
     }
 
-    .tab.active {
-      color: #e5e7eb;
-      border-color: rgba(129,140,248,0.9);
-      background: radial-gradient(circle at 0 0, rgba(79,70,229,0.35), rgba(15,23,42,0.95));
+    .json-toggle:hover {
+      background: var(--primary);
+      color: white;
     }
 
-    .response-container {
-      border-radius: 14px;
-      border: 1px solid rgba(55,65,81,0.95);
-      background: radial-gradient(circle at 0 0, rgba(15,23,42,0.9), #020617);
-      padding: 10px 11px;
-      position: relative;
-      overflow: hidden;
-    }
-
-    .response-container::before {
-      content: "";
-      position: absolute;
-      inset: -160px;
-      background:
-        radial-gradient(circle at 0 0, rgba(129,140,248,0.18), transparent 60%),
-        radial-gradient(circle at 100% 0, rgba(56,189,248,0.15), transparent 60%);
-      opacity: 0.7;
-      pointer-events: none;
-    }
-
-    .response-content {
-      position: relative;
-      z-index: 1;
-    }
-
-    .code-toolbar {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 6px;
-      font-size: 10px;
-      color: var(--text-muted);
-    }
-
-    .code-toolbar-left {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-    }
-
-    .code-pill {
-      padding: 1px 5px;
-      border-radius: 999px;
-      border: 1px solid rgba(55,65,81,0.9);
-      background: rgba(15,23,42,0.9);
-    }
-
-    .code-badge {
-      padding: 1px 6px;
-      border-radius: 999px;
-      background: rgba(17,24,39,0.95);
-      border: 1px solid rgba(55,65,81,0.9);
-      display: inline-flex;
-      align-items: center;
-      gap: 4px;
-    }
-
-    .code-badge svg {
-      width: 10px;
-      height: 10px;
-      stroke: rgba(156,163,175,0.9);
-    }
-
-    .code-scroll {
-      max-height: 360px;
+    .json-output {
+      background: rgba(0,0,0,0.4);
+      border-radius: 12px;
+      padding: 1.5rem;
+      font-family: 'SF Mono', monospace;
+      font-size: 0.85rem;
+      max-height: 300px;
       overflow: auto;
-      border-radius: 10px;
-      background: rgba(15,23,42,0.92);
-      padding: 8px 10px;
-      font-size: 12px;
-      font-family: ui-monospace, Menlo, Monaco, Consolas, "SF Mono", monospace;
-      color: #e5e7eb;
-      line-height: 1.4;
-      scrollbar-width: thin;
-      scrollbar-color: rgba(55,65,81,0.9) transparent;
+      display: none;
+      border: 1px solid var(--border);
     }
 
-    .code-scroll::-webkit-scrollbar {
-      width: 7px;
-      height: 7px;
+    .json-output.show {
+      display: block;
     }
 
-    .code-scroll::-webkit-scrollbar-track {
-      background: transparent;
+    .loading {
+      display: none;
+      text-align: center;
+      padding: 2rem;
     }
 
-    .code-scroll::-webkit-scrollbar-thumb {
-      background: rgba(55,65,81,0.9);
-      border-radius: 999px;
+    .spinner {
+      width: 40px;
+      height: 40px;
+      border: 3px solid rgba(99,102,241,0.3);
+      border-top: 3px solid var(--primary);
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin: 0 auto 1rem;
     }
 
-    .code-scroll pre {
-      margin: 0;
-      white-space: pre;
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
     }
 
-    .hint-row {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-top: 6px;
-      font-size: 10px;
-      color: var(--text-muted);
-    }
-
-    .hint-row span {
-      display: inline-flex;
-      align-items: center;
-      gap: 4px;
-    }
-
-    .hint-dot {
-      width: 5px;
-      height: 5px;
-      border-radius: 999px;
-      background: linear-gradient(135deg, #22c55e, #a3e635);
-    }
-
-    .hint-shortcut {
-      padding: 1px 5px;
-      border-radius: 999px;
-      border: 1px dashed rgba(75,85,99,0.9);
-    }
-
-    .error-text {
-      color: var(--danger);
-      font-size: 11px;
+    @media (max-width: 768px) {
+      .input-section { padding: 2rem 1.5rem; }
+      .features-grid { grid-template-columns: 1fr; }
     }
   </style>
 </head>
 <body>
-  <div class="app-shell">
-    <!-- LEFT: Request -->
-    <section class="panel">
-      <div class="panel-inner">
-        <header class="panel-header">
-          <div class="panel-title">
-            <span class="panel-title-chip"></span>
-            <span>API Request Console</span>
-          </div>
-          <div class="panel-subtitle">
-            Prototype REST client pour tes endpoints
-          </div>
-        </header>
-
-        <div class="badge-row">
-          <div class="badge-group">
-            <div class="badge badge-pill">
-              <span class="badge-dot"></span>
-              <span>Mode dev</span>
-            </div>
-            <div class="badge">
-              <span>⌘⏎</span>
-              <span>Exécuter la requête</span>
-            </div>
-          </div>
-          <button class="secondary-btn" type="button" onclick="resetForm()">
-            <svg viewBox="0 0 24 24" fill="none">
-              <path d="M4 4v6h6M20 20v-6h-6M6 14a4 4 0 0 0 6.8 2.8L16 14M18 10a4 4 0 0 0-6.8-2.8L8 10" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" />
-            </svg>
-            <span>Reset</span>
-          </button>
-        </div>
-
-        <!-- Method + URL -->
-        <div class="field-grid">
-          <div class="label">Méthode</div>
-          <div class="method-select">
-            <button class="method-pill active" type="button" data-method="GET">GET</button>
-            <button class="method-pill" type="button" data-method="POST">POST</button>
-            <button class="method-pill" type="button" data-method="PUT">PUT</button>
-            <button class="method-pill" type="button" data-method="DELETE">DELETE</button>
-          </div>
-        </div>
-
-        <div class="field-grid">
-          <div class="label">Endpoint</div>
-          <input id="url-input" class="input" type="text" placeholder="https://api.example.com/v1/emails/validate" />
-        </div>
-
-        <div class="row row-space" style="margin-bottom: 8px;">
-          <div class="label">Headers</div>
-          <button class="secondary-btn" type="button" onclick="toggleAuthHeader()">
-            <svg viewBox="0 0 24 24" fill="none">
-              <path d="M12 12v4M12 8h.01M5 9a7 7 0 1 1 14 0v3a7 7 0 1 1-14 0V9Z" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" />
-            </svg>
-            <span>Auth rapide</span>
-          </button>
-        </div>
-
-        <div class="row row-wrap" style="margin-bottom: 10px;">
-          <input id="header-key" class="input input-sm" style="max-width: 140px;" placeholder="Header key (ex: Authorization)" />
-          <input id="header-value" class="input input-sm" placeholder="Header value" />
-        </div>
-
-        <div class="row row-space" style="margin-bottom: 6px;">
-          <div class="label">Body JSON</div>
-          <span class="meta-chip">
-            <span style="width:6px;height:6px;border-radius:999px;background:var(--accent);"></span>
-            <strong>Raw</strong> JSON
-          </span>
-        </div>
-
-        <textarea id="body-input" class="textarea" spellcheck="false" placeholder='{"email": "amine@example.com"}'></textarea>
-
-        <div class="divider"></div>
-
-        <div class="row row-space">
-          <div class="response-meta" style="font-size:10px;">
-            <span class="meta-chip"><strong>Tips</strong> Edge cases, timeouts, erreurs 4xx/5xx</span>
-          </div>
-          <button class="primary-btn" type="button" onclick="sendRequest()">
-            <span class="primary-btn-icon">
-              <svg viewBox="0 0 24 24" fill="none">
-                <path d="M5 12h7M13 5l7 7-7 7" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" />
-              </svg>
-            </span>
-            <span>Send request</span>
-          </button>
-        </div>
-      </div>
-    </section>
-
-    <!-- RIGHT: Response -->
-    <section class="panel">
-      <div class="panel-inner">
-        <header class="panel-header">
-          <div class="panel-title">
-            <span class="panel-title-chip"></span>
-            <span>API Response Viewer</span>
-          </div>
-          <div class="panel-subtitle">
-            Status, headers & JSON retour
-          </div>
-        </header>
-
-        <div class="badge-row" style="margin-bottom: 8px;">
-          <div class="response-meta">
-            <span class="status-badge" id="status-badge">
-              <span class="status-dot"></span>
-              <span>En attente de requête</span>
-            </span>
-          </div>
-          <div class="badge-group">
-            <div class="badge">
-              <span>⌘⇧C</span>
-              <span>Copier JSON</span>
-            </div>
-          </div>
-        </div>
-
-        <div class="response-meta" style="margin-bottom:8px;">
-          <span id="response-status">Status: -</span>
-          <span>•</span>
-          <span id="response-time">Temps: -</span>
-          <span>•</span>
-          <span id="response-size">Taille: -</span>
-        </div>
-
-        <div class="tab-row">
-          <button class="tab active" type="button" data-tab="json" onclick="switchTab('json')">JSON brut</button>
-          <button class="tab" type="button" data-tab="headers" onclick="switchTab('headers')">Headers</button>
-          <button class="tab" type="button" data-tab="meta" onclick="switchTab('meta')">Meta</button>
-        </div>
-
-        <div class="response-container">
-          <div class="response-content">
-            <div class="code-toolbar">
-              <div class="code-toolbar-left">
-                <div class="code-pill" id="tab-label">JSON</div>
-                <div class="code-badge">
-                  <svg viewBox="0 0 24 24" fill="none">
-                    <path d="M5 7h14M5 12h8M5 17h4" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" />
-                  </svg>
-                  <span id="code-mode">Raw view</span>
-                </div>
-              </div>
-              <button class="secondary-btn" type="button" onclick="copyCurrent()">
-                <svg viewBox="0 0 24 24" fill="none">
-                  <path d="M9 9h9a1 1 0 0 1 1 1v9M7 15H6a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1h9a1 1 0 0 1 1 1v1" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" />
-                </svg>
-                <span>Copier</span>
-              </button>
-            </div>
-
-            <div id="json-view" class="code-scroll">
-              <pre id="json-output">Aucune requête envoyée pour le moment.</pre>
-            </div>
-            <div id="headers-view" class="code-scroll" style="display:none;">
-              <pre id="headers-output">Headers non disponibles.</pre>
-            </div>
-            <div id="meta-view" class="code-scroll" style="display:none;">
-              <pre id="meta-output">Meta non disponible.</pre>
-            </div>
-          </div>
-        </div>
-
-        <div class="hint-row">
-          <span>
-            <span class="hint-dot"></span>
-            <span>JSON laissé volontairement brut (aucune transformation du payload).</span>
-          </span>
-          <span class="hint-shortcut">Esc pour nettoyer</span>
-        </div>
-
-        <div style="margin-top:6px;font-size:10px;color:var(--text-muted);">
-          <span id="error-message" class="error-text"></span>
-        </div>
-      </div>
-    </section>
+  <div class="hero">
+    <h1>Validateur Email Pro</h1>
+    <p class="tagline">Syntaxe, MX/DNS, Profanity, Disposable, Role accounts, Firstname/Gender/Age. Résultats en 200ms.</p>
   </div>
 
-  <script>
-    let currentMethod = "GET";
-    let lastResponseBody = "";
-    let lastResponseHeaders = "";
-    let lastMeta = "";
+  <section class="input-section">
+    <div class="email-input-wrapper">
+      <svg class="input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M20 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z"/>
+      </svg>
+      <input type="email" id="email-input" placeholder="amine@exemple.com" />
+    </div>
 
-    // Méthodes (pills)
-    document.querySelectorAll(".method-pill").forEach(btn => {
-      btn.addEventListener("click", () => {
-        document.querySelectorAll(".method-pill").forEach(b => b.classList.remove("active"));
-        btn.classList.add("active");
-        currentMethod = btn.getAttribute("data-method");
+    <div class="examples">
+      <button class="example-btn" data-email="test@gmail.com">Valid</button>
+      <button class="example-btn" data-email="noreply@disposable.com">Disposable</button>
+      <button class="example-btn" data-email="admin@company.com">Role account</button>
+      <button class="example-btn" data-email="sh1t@domain.com">Profanity</button>
+      <button class="example-btn" data-email="martin.dupont@entreprise.fr">Firstname FR</button>
+      <button class="example-btn" data-email="gabriel.thomas@gmail.com">Ambiguous</button>
+    </div>
+
+    <button class="validate-btn" onclick="validateEmail()">
+      <span id="btn-text">Valider l'email</span>
+      <div class="loading" id="loading">
+        <div class="spinner"></div>
+        <span>Analyse en cours...</span>
+      </div>
+    </button>
+  </section>
+
+  <section class="results" id="results"></section>
+
+  <script>
+    const EXAMPLES = {
+      'test@gmail.com': 'VALID',
+      'noreply@disposable.com': 'DISPOSABLE',
+      'admin@company.com': 'ROLE_ACCOUNT',
+      'sh1t@domain.com': 'PROFANITY',
+      'martin.dupont@entreprise.fr': 'FIRSTNAME_VALID',
+      'gabriel.thomas@gmail.com': 'AMBIGUOUS'
+    };
+
+    // Exemples clickables
+    document.querySelectorAll('.example-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.example-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        document.getElementById('email-input').value = btn.dataset.email;
       });
     });
 
-    function resetForm() {
-      document.getElementById("url-input").value = "";
-      document.getElementById("header-key").value = "";
-      document.getElementById("header-value").value = "";
-      document.getElementById("body-input").value = "";
-      document.getElementById("json-output").textContent = "Aucune requête envoyée pour le moment.";
-      document.getElementById("headers-output").textContent = "Headers non disponibles.";
-      document.getElementById("meta-output").textContent = "Meta non disponible.";
-      document.getElementById("status-badge").innerHTML = '<span class="status-dot"></span><span>En attente de requête</span>';
-      document.getElementById("response-status").textContent = "Status: -";
-      document.getElementById("response-time").textContent = "Temps: -";
-      document.getElementById("response-size").textContent = "Taille: -";
-      document.getElementById("error-message").textContent = "";
-    }
+    async function validateEmail() {
+      const email = document.getElementById('email-input').value.trim();
+      if (!email) return;
 
-    function toggleAuthHeader() {
-      const keyInput = document.getElementById("header-key");
-      const valueInput = document.getElementById("header-value");
-      if (keyInput.value.toLowerCase() === "authorization") {
-        keyInput.value = "";
-        valueInput.value = "";
-      } else {
-        keyInput.value = "Authorization";
-        valueInput.placeholder = "Bearer xxxxx";
-        valueInput.focus();
-      }
-    }
-
-    function switchTab(tab) {
-      document.querySelectorAll(".tab").forEach(t => t.classList.remove("active"));
-      document.querySelector('.tab[data-tab="' + tab + '"]').classList.add("active");
-
-      document.getElementById("json-view").style.display = tab === "json" ? "block" : "none";
-      document.getElementById("headers-view").style.display = tab === "headers" ? "block" : "none";
-      document.getElementById("meta-view").style.display = tab === "meta" ? "block" : "none";
-
-      const tabLabel = document.getElementById("tab-label");
-      const codeMode = document.getElementById("code-mode");
-
-      if (tab === "json") {
-        tabLabel.textContent = "JSON";
-        codeMode.textContent = "Raw view";
-      } else if (tab === "headers") {
-        tabLabel.textContent = "Headers";
-        codeMode.textContent = "Key/Value";
-      } else {
-        tabLabel.textContent = "Meta";
-        codeMode.textContent = "Debug info";
-      }
-    }
-
-    async function sendRequest() {
-      const url = document.getElementById("url-input").value.trim();
-      const headerKey = document.getElementById("header-key").value.trim();
-      const headerValue = document.getElementById("header-value").value.trim();
-      const bodyRaw = document.getElementById("body-input").value.trim();
-      const errorMessage = document.getElementById("error-message");
-
-      errorMessage.textContent = "";
-
-      if (!url) {
-        errorMessage.textContent = "URL manquante.";
-        return;
-      }
-
-      let headers = {};
-      if (headerKey && headerValue) {
-        headers[headerKey] = headerValue;
-      }
-      if (currentMethod !== "GET" && bodyRaw) {
-        headers["Content-Type"] = "application/json";
-      }
-
-      let payload;
-      if (currentMethod !== "GET" && bodyRaw) {
-        try {
-          // On parse uniquement pour vérifier que le JSON n'est pas cassé
-          JSON.parse(bodyRaw);
-          payload = bodyRaw;
-        } catch (e) {
-          errorMessage.textContent = "JSON invalide dans le body.";
-          return;
-        }
-      }
-
-      const start = performance.now();
-      document.getElementById("status-badge").innerHTML =
-        '<span class="status-dot"></span><span>Requête en cours...</span>';
-      document.getElementById("json-output").textContent = "…";
-      document.getElementById("headers-output").textContent = "…";
-      document.getElementById("meta-output").textContent = "…";
+      const btn = document.querySelector('.validate-btn');
+      const btnText = document.getElementById('btn-text');
+      const loading = document.getElementById('loading');
+      
+      btn.disabled = true;
+      btnText.style.display = 'none';
+      loading.style.display = 'block';
 
       try {
-        const response = await fetch(url, {
-          method: currentMethod,
-          headers,
-          body: currentMethod === "GET" ? undefined : payload
+        // Remplace par TON API endpoint
+        const response = await fetch('https://api.yeswecheck.com/v1/emails/validate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: email })
         });
 
-        const end = performance.now();
-        const time = Math.round(end - start);
-
-        const clone = response.clone();
-        let bodyText;
-        try {
-          bodyText = await clone.text();
-        } catch {
-          bodyText = "<no body>";
-        }
-
-        const size = bodyText ? new Blob([bodyText]).size : 0;
-
-        lastResponseBody = bodyText || "";
-        lastResponseHeaders = "";
-        response.headers.forEach((value, key) => {
-          lastResponseHeaders += key + ": " + value + "\n";
-        });
-
-        lastMeta =
-          "URL: " + url + "\n" +
-          "Method: " + currentMethod + "\n" +
-          "Status: " + response.status + " " + (response.statusText || "") + "\n" +
-          "Time: " + time + " ms\n" +
-          "Size: " + size + " bytes\n";
-
-        // Status badge
-        const badge = document.getElementById("status-badge");
-        if (response.ok) {
-          badge.innerHTML = '<span class="status-dot"></span><span>Succès (' + response.status + ')</span>';
-        } else {
-          badge.innerHTML =
-            '<span class="status-dot" style="background:radial-gradient(circle at 30% 0,#fecaca,#ef4444);box-shadow:0 0 10px rgba(239,68,68,0.9);"></span>' +
-            '<span>Erreur (' + response.status + ')</span>';
-        }
-
-        document.getElementById("response-status").textContent =
-          "Status: " + response.status + " " + (response.statusText || "");
-        document.getElementById("response-time").textContent = "Temps: " + time + " ms";
-        document.getElementById("response-size").textContent = "Taille: " + size + " bytes";
-
-        document.getElementById("json-output").textContent = bodyText || "<empty>";
-        document.getElementById("headers-output").textContent =
-          lastResponseHeaders || "Aucun header renvoyé.";
-        document.getElementById("meta-output").textContent = lastMeta;
-      } catch (err) {
-        document.getElementById("status-badge").innerHTML =
-          '<span class="status-dot" style="background:radial-gradient(circle at 30% 0,#fecaca,#ef4444);box-shadow:0 0 10px rgba(239,68,68,0.9);"></span>' +
-          '<span>Erreur réseau</span>';
-        document.getElementById("json-output").textContent = String(err);
-        document.getElementById("headers-output").textContent = "Headers non disponibles.";
-        document.getElementById("meta-output").textContent = "Requête échouée.";
-        errorMessage.textContent = "Impossible d'appeler l'API (" + err.message + ").";
+        const data = await response.json();
+        
+        displayResults(email, data, response.ok);
+      } catch (error) {
+        displayError('Erreur réseau. Vérifiez votre connexion.');
+      } finally {
+        btn.disabled = false;
+        btnText.style.display = 'block';
+        loading.style.display = 'none';
       }
     }
 
-    function copyCurrent() {
-      const activeTab = document.querySelector(".tab.active").getAttribute("data-tab");
-      let text = "";
-      if (activeTab === "json") {
-        text = document.getElementById("json-output").textContent || "";
-      } else if (activeTab === "headers") {
-        text = document.getElementById("headers-output").textContent || "";
-      } else {
-        text = document.getElementById("meta-output").textContent || "";
-      }
-      if (!text) return;
+    function displayResults(email, data, isSuccess) {
+      const results = document.getElementById('results');
+      
+      const statusClass = isSuccess ? 'status-success' : 'status-fail';
+      const statusText = isSuccess ? 'VALID' : 'INVALID';
+      const statusIcon = isSuccess ? '✅' : '❌';
 
-      navigator.clipboard.writeText(text).catch(() => {});
+      let featuresHtml = `
+        <div class="features-grid">
+          <div class="feature-item feature-${data.syntax ? 'success' : 'fail'}">
+            <div class="feature-icon">📝</div>
+            <div>
+              <div class="feature-label">Syntaxe RFC</div>
+              <div class="feature-detail">${data.syntax ? 'Conforme' : 'Invalide'}</div>
+            </div>
+          </div>
+          <div class="feature-item feature-${data.mxValid ? 'success' : 'fail'}">
+            <div class="feature-icon">🌐</div>
+            <div>
+              <div class="feature-label">DNS/MX Records</div>
+              <div class="feature-detail">${data.mxValid ? 'MX OK' : 'Pas de MX'}</div>
+            </div>
+          </div>
+          <div class="feature-item feature-${!data.isProfane ? 'success' : 'fail'}">
+            <div class="feature-icon">🚫</div>
+            <div>
+              <div class="feature-label">Profanity Check</div>
+              <div class="feature-detail">${!data.isProfane ? 'Clean' : 'Profane'}</div>
+            </div>
+          </div>
+          <div class="feature-item feature-${!data.isDisposable ? 'success' : 'fail'}">
+            <div class="feature-icon">🗑️</div>
+            <div>
+              <div class="feature-label">Disposable</div>
+              <div class="feature-detail">${!data.isDisposable ? 'Réel' : 'Temp'}</div>
+            </div>
+          </div>
+          <div class="feature-item feature-${!data.isRoleAccount ? 'success' : 'fail'}">
+            <div class="feature-icon">👔</div>
+            <div>
+              <div class="feature-label">Role Account</div>
+              <div class="feature-detail">${!data.isRoleAccount ? 'Personnel' : 'Générique'}</div>
+            </div>
+          </div>
+          <div class="feature-item feature-${data.firstname?.gender ? 'success' : 'warning'}">
+            <div class="feature-icon">👤</div>
+            <div>
+              <div class="feature-label">Firstname/Gender</div>
+              <div class="feature-detail">${data.firstname?.gender || 'N/A'}</div>
+            </div>
+          </div>
+        </div>
+      `;
+
+      const jsonToggle = `
+        <button class="json-toggle" onclick="toggleJson()">Voir JSON brut</button>
+        <div class="json-output" id="json-output">${JSON.stringify(data, null, 2)}</div>
+      `;
+
+      results.innerHTML = `
+        <div class="result-card show">
+          <div class="overall-status">
+            <div class="status-badge ${statusClass}">
+              <div class="status-icon">${statusIcon}</div>
+              <span>${statusText}</span>
+            </div>
+            <div style="flex:1; text-align:right;">
+              <strong>${email}</strong>
+            </div>
+          </div>
+          ${featuresHtml}
+          ${jsonToggle}
+        </div>
+      `;
     }
 
-    // Raccourcis clavier
-    window.addEventListener("keydown", (e) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
-        e.preventDefault();
-        sendRequest();
-      }
-      if (e.key === "Escape") {
-        resetForm();
-      }
+    function displayError(message) {
+      document.getElementById('results').innerHTML = `
+        <div class="result-card show" style="border-left-color: var(--danger);">
+          <div class="overall-status">
+            <div class="status-badge status-fail">
+              <div class="status-icon">⚠️</div>
+              <span>Erreur</span>
+            </div>
+          </div>
+          <p style="color: var(--danger); font-size: 1.1rem;">${message}</p>
+        </div>
+      `;
+    }
+
+    function toggleJson() {
+      const jsonOutput = document.getElementById('json-output');
+      jsonOutput.classList.toggle('show');
+    }
+
+    // Enter pour valider
+    document.getElementById('email-input').addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') validateEmail();
     });
   </script>
 </body>
