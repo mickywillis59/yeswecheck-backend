@@ -1,750 +1,965 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>YesWeCheck API Tester !</title>
+  <meta charset="UTF-8" />
+  <title>API Tester</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <style>
+    :root {
+      --bg: #050816;
+      --bg-elevated: #0b1020;
+      --bg-soft: #111827;
+      --primary: #6366f1;
+      --primary-soft: rgba(99,102,241,0.15);
+      --accent: #22c55e;
+      --border: #1f2937;
+      --text-main: #f9fafb;
+      --text-muted: #9ca3af;
+      --danger: #f97373;
+      --radius-lg: 14px;
+      --radius-md: 10px;
+      --shadow-soft: 0 18px 45px rgba(15,23,42,0.7);
+      --shadow-chip: 0 8px 20px rgba(15,23,42,0.7);
+      --transition-fast: 150ms ease-out;
+    }
+
     * {
-      margin: 0;
-      padding: 0;
       box-sizing: border-box;
     }
 
     body {
-      font-family:  'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      background:  linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      margin: 0;
       min-height: 100vh;
-      padding: 20px;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "SF Pro Text", sans-serif;
+      background: radial-gradient(circle at top, #111827 0, #020617 55%, #000 100%);
+      color: var(--text-main);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 32px 16px;
     }
 
-    .container {
-      max-width: 1400px;
-      margin: 0 auto;
-      background: white;
-      border-radius: 20px;
-      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+    .app-shell {
+      width: 100%;
+      max-width: 1160px;
+      display: grid;
+      grid-template-columns: minmax(0, 1.1fr) minmax(0, 1.2fr);
+      gap: 20px;
+      align-items: stretch;
+    }
+
+    @media (max-width: 960px) {
+      .app-shell {
+        grid-template-columns: minmax(0, 1fr);
+      }
+    }
+
+    .panel {
+      background: linear-gradient(145deg, rgba(15,23,42,0.96), rgba(15,23,42,0.88));
+      border-radius: 22px;
+      border: 1px solid rgba(148,163,184,0.12);
+      box-shadow: var(--shadow-soft);
+      padding: 18px 18px 16px;
+      position: relative;
       overflow: hidden;
     }
 
-    .header {
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      color: white;
-      padding: 30px;
-      text-align: center;
+    .panel::before {
+      content: "";
+      position: absolute;
+      inset: -120px;
+      background:
+        radial-gradient(circle at 0 0, rgba(56,189,248,0.08), transparent 60%),
+        radial-gradient(circle at 100% 0, rgba(129,140,248,0.08), transparent 60%);
+      opacity: 0.7;
+      pointer-events: none;
     }
 
-    .header h1 {
-      font-size: 2.5em;
+    .panel-inner {
+      position: relative;
+      z-index: 1;
+    }
+
+    .panel-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 14px;
+    }
+
+    .panel-title {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 14px;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+    }
+
+    .panel-title-chip {
+      width: 8px;
+      height: 8px;
+      border-radius: 999px;
+      background: conic-gradient(from 160deg, #22c55e, #22c55e, #4ade80, #a7f3d0, #22c55e);
+      box-shadow: 0 0 10px rgba(34,197,94,0.85);
+    }
+
+    .panel-subtitle {
+      font-size: 11px;
+      color: var(--text-muted);
+      opacity: 0.9;
+    }
+
+    /* Request header */
+    .badge-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 12px;
+      gap: 8px;
+    }
+
+    .badge-group {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      align-items: center;
+    }
+
+    .badge {
+      font-size: 11px;
+      padding: 3px 8px;
+      border-radius: 999px;
+      border: 1px solid rgba(148,163,184,0.28);
+      color: var(--text-muted);
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      background: linear-gradient(135deg, rgba(15,23,42,0.9), rgba(15,23,42,0.6));
+      box-shadow: var(--shadow-chip);
+    }
+
+    .badge-pill {
+      background: radial-gradient(circle at 0 0, rgba(96,165,250,0.28), rgba(15,23,42,1));
+      border-color: rgba(129,140,248,0.55);
+      color: #e5e7eb;
+    }
+
+    .badge-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 999px;
+      background: linear-gradient(135deg, #60a5fa, #a855f7);
+      box-shadow: 0 0 10px rgba(96,165,250,0.8);
+    }
+
+    .badge-pill.badge-green {
+      background: radial-gradient(circle at 0 0, rgba(34,197,94,0.32), rgba(15,23,42,1));
+      border-color: rgba(52,211,153,0.7);
+      color: #bbf7d0;
+    }
+
+    /* Form */
+    .field-grid {
+      display: grid;
+      grid-template-columns: auto 1fr;
+      gap: 8px;
+      align-items: center;
       margin-bottom: 10px;
     }
 
-    .header p {
-      opacity: 0.9;
-      font-size: 1.1em;
-    }
-
-    .tabs {
-      display: flex;
-      background: #f5f5f5;
-      border-bottom: 2px solid #ddd;
-      overflow-x: auto;
-    }
-
-    .tab {
-      padding: 15px 25px;
-      cursor: pointer;
-      border: none;
-      background: transparent;
-      font-size: 1em;
-      color: #666;
-      border-bottom: 3px solid transparent;
-      transition:  all 0.3s;
+    .label {
+      font-size: 12px;
+      color: var(--text-muted);
       white-space: nowrap;
     }
 
-    .tab:hover {
-      background: #e0e0e0;
-    }
-
-    .tab.active {
-      color: #667eea;
-      border-bottom-color: #667eea;
-      background: white;
-      font-weight: bold;
-    }
-
-    .content {
-      padding: 30px;
-    }
-
-    .api-section {
-      display: none;
-    }
-
-    .api-section.active {
-      display: block;
-    }
-
-    .form-group {
-      margin-bottom: 20px;
-    }
-
-    .form-group label {
-      display: block;
-      margin-bottom: 8px;
-      font-weight:  600;
-      color: #333;
-    }
-
-    .form-group input,
-    .form-group select,
-    .form-group textarea {
-      width: 100%;
-      padding: 12px;
-      border: 2px solid #ddd;
-      border-radius: 8px;
-      font-size: 1em;
-      transition: border-color 0.3s;
-    }
-
-    .form-group input:focus,
-    .form-group select:focus,
-    .form-group textarea:focus {
-      outline: none;
-      border-color: #667eea;
-    }
-
-    .form-group textarea {
-      font-family: monospace;
-      min-height:  100px;
-      resize:  vertical;
-    }
-
-    .btn {
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      color: white;
-      padding: 12px 30px;
-      border: none;
-      border-radius: 8px;
-      font-size: 1.1em;
-      cursor: pointer;
-      transition: transform 0.2s, box-shadow 0.2s;
-      font-weight: 600;
-    }
-
-    .btn:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
-    }
-
-    .btn:active {
-      transform: translateY(0);
-    }
-
-    .btn:disabled {
-      opacity: 0.6;
-      cursor: not-allowed;
-    }
-
-    .examples {
+    .method-select {
       display: flex;
-      gap: 10px;
-      margin-bottom: 20px;
+      align-items: center;
+      gap: 6px;
+      background: radial-gradient(circle at 0 0, rgba(52,211,153,0.08), rgba(15,23,42,0.95));
+      border-radius: 999px;
+      padding: 4px 5px;
+      border: 1px solid rgba(52,211,153,0.5);
+      box-shadow: var(--shadow-chip);
+      font-size: 11px;
+    }
+
+    .method-pill {
+      font-size: 11px;
+      padding: 3px 8px;
+      border-radius: 999px;
+      border: 1px solid rgba(15,23,42,0.9);
+      background: rgba(15,23,42,0.8);
+      color: var(--text-muted);
+      cursor: pointer;
+      transition: background var(--transition-fast), color var(--transition-fast), transform var(--transition-fast), border-color var(--transition-fast);
+    }
+
+    .method-pill.active {
+      background: radial-gradient(circle at 0 0, rgba(52,211,153,0.8), #065f46);
+      color: #ecfdf5;
+      border-color: rgba(110,231,183,0.9);
+      transform: translateY(-0.5px);
+      box-shadow: 0 0 14px rgba(16,185,129,0.8);
+    }
+
+    .hotkey {
+      font-size: 10px;
+      padding: 1px 5px;
+      border-radius: 999px;
+      border: 1px solid rgba(148,163,184,0.35);
+      color: rgba(209,213,219,0.9);
+      background: rgba(15,23,42,0.9);
+    }
+
+    .input {
+      width: 100%;
+      border-radius: 999px;
+      padding: 8px 12px;
+      border: 1px solid rgba(55,65,81,0.9);
+      background: radial-gradient(circle at 0 0, rgba(15,23,42,0.9), #020617);
+      color: var(--text-main);
+      font-size: 13px;
+      outline: none;
+      transition: border-color 120ms ease-out, box-shadow 120ms ease-out, background 120ms ease-out;
+    }
+
+    .input::placeholder {
+      color: rgba(148,163,184,0.7);
+    }
+
+    .input:focus {
+      border-color: rgba(129,140,248,0.8);
+      box-shadow: 0 0 0 1px rgba(129,140,248,0.5);
+      background: radial-gradient(circle at 0 0, rgba(79,70,229,0.16), #020617);
+    }
+
+    .input-sm {
+      border-radius: 10px;
+      padding: 6px 9px;
+      font-size: 12px;
+    }
+
+    .textarea {
+      width: 100%;
+      border-radius: 14px;
+      padding: 9px 11px;
+      border: 1px solid rgba(55,65,81,0.9);
+      background: radial-gradient(circle at 0 0, rgba(15,23,42,0.9), #020617);
+      color: var(--text-main);
+      font-size: 12px;
+      resize: vertical;
+      min-height: 120px;
+      outline: none;
+      font-family: ui-monospace, Menlo, Monaco, Consolas, "SF Mono", monospace;
+    }
+
+    .textarea::placeholder {
+      color: rgba(148,163,184,0.7);
+    }
+
+    .textarea:focus {
+      border-color: rgba(129,140,248,0.8);
+      box-shadow: 0 0 0 1px rgba(129,140,248,0.55);
+      background: radial-gradient(circle at 0 0, rgba(79,70,229,0.16), #020617);
+    }
+
+    .row {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .row-wrap {
       flex-wrap: wrap;
     }
 
-    .example-btn {
-      padding: 8px 15px;
-      background: #f0f0f0;
-      border: 1px solid #ddd;
-      border-radius:  6px;
-      cursor:  pointer;
-      font-size:  0.9em;
-      transition: all 0.2s;
+    .row-space {
+      justify-content: space-between;
     }
 
-    .example-btn:hover {
-      background: #e0e0e0;
-      border-color: #667eea;
+    .meta-chip {
+      font-size: 11px;
+      padding: 3px 6px;
+      border-radius: 999px;
+      border: 1px solid rgba(75,85,99,0.9);
+      color: var(--text-muted);
+      background: rgba(15,23,42,0.9);
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
     }
 
-    .result-container {
-      margin-top: 30px;
-      display: none;
+    .meta-chip strong {
+      font-weight: 500;
+      color: #e5e7eb;
     }
 
-    .result-container.show {
-      display: block;
+    .divider {
+      height: 1px;
+      background: linear-gradient(to right, transparent, rgba(55,65,81,0.9), transparent);
+      margin: 14px 0 8px;
     }
 
-    .result-header {
+    /* Buttons */
+    .primary-btn {
+      border-radius: 999px;
+      border: none;
+      padding: 7px 18px;
+      font-size: 13px;
+      font-weight: 500;
+      letter-spacing: 0.03em;
+      text-transform: uppercase;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      color: #0b1120;
+      background: linear-gradient(135deg, #a855f7, #6366f1, #22c55e);
+      box-shadow:
+        0 0 0 1px rgba(191,219,254,0.2),
+        0 18px 35px rgba(88,28,135,0.5);
+      cursor: pointer;
+      position: relative;
+      overflow: hidden;
+      white-space: nowrap;
+    }
+
+    .primary-btn span {
+      position: relative;
+      z-index: 1;
+    }
+
+    .primary-btn::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(circle at 0 0, rgba(255,255,255,0.4), transparent 60%);
+      opacity: 0;
+      transition: opacity 120ms ease-out;
+    }
+
+    .primary-btn:hover::before {
+      opacity: 1;
+    }
+
+    .primary-btn:active {
+      transform: translateY(1px);
+      box-shadow:
+        0 0 0 1px rgba(191,219,254,0.2),
+        0 11px 18px rgba(15,23,42,0.9);
+    }
+
+    .primary-btn-icon {
+      width: 17px;
+      height: 17px;
+      border-radius: 999px;
+      background: radial-gradient(circle at 30% 0, #f9fafb, #d1fae5 55%, #22c55e 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .primary-btn-icon svg {
+      width: 11px;
+      height: 11px;
+      stroke: #022c22;
+    }
+
+    .secondary-btn {
+      border-radius: 999px;
+      border: 1px solid rgba(148,163,184,0.55);
+      padding: 6px 12px;
+      font-size: 11px;
+      color: var(--text-muted);
+      background: rgba(15,23,42,0.9);
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      cursor: pointer;
+      transition: border-color var(--transition-fast), color var(--transition-fast), background var(--transition-fast);
+    }
+
+    .secondary-btn:hover {
+      border-color: rgba(148,163,184,0.9);
+      color: #e5e7eb;
+      background: radial-gradient(circle at 0 0, rgba(148,163,184,0.15), rgba(15,23,42,0.9));
+    }
+
+    .secondary-btn svg {
+      width: 12px;
+      height: 12px;
+      stroke: rgba(156,163,175,0.85);
+    }
+
+    /* Response panel */
+    .status-badge {
+      font-size: 11px;
+      padding: 3px 7px;
+      border-radius: 999px;
+      border: 1px solid rgba(52,211,153,0.6);
+      background: radial-gradient(circle at 0 0, rgba(34,197,94,0.35), rgba(15,23,42,0.95));
+      color: #bbf7d0;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .status-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 999px;
+      background: radial-gradient(circle at 30% 0, #bbf7d0, #22c55e);
+      box-shadow: 0 0 10px rgba(34,197,94,0.9);
+    }
+
+    .response-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      align-items: center;
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    .response-meta strong {
+      color: #e5e7eb;
+      font-weight: 500;
+    }
+
+    .tab-row {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      margin-bottom: 8px;
+    }
+
+    .tab {
+      font-size: 11px;
+      padding: 3px 9px;
+      border-radius: 999px;
+      border: 1px solid transparent;
+      color: rgba(148,163,184,0.9);
+      background: transparent;
+      cursor: pointer;
+      transition: background var(--transition-fast), color var(--transition-fast), border-color var(--transition-fast);
+    }
+
+    .tab.active {
+      color: #e5e7eb;
+      border-color: rgba(129,140,248,0.9);
+      background: radial-gradient(circle at 0 0, rgba(79,70,229,0.35), rgba(15,23,42,0.95));
+    }
+
+    .response-container {
+      border-radius: 14px;
+      border: 1px solid rgba(55,65,81,0.95);
+      background: radial-gradient(circle at 0 0, rgba(15,23,42,0.9), #020617);
+      padding: 10px 11px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .response-container::before {
+      content: "";
+      position: absolute;
+      inset: -160px;
+      background:
+        radial-gradient(circle at 0 0, rgba(129,140,248,0.18), transparent 60%),
+        radial-gradient(circle at 100% 0, rgba(56,189,248,0.15), transparent 60%);
+      opacity: 0.7;
+      pointer-events: none;
+    }
+
+    .response-content {
+      position: relative;
+      z-index: 1;
+    }
+
+    .code-toolbar {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin-bottom: 15px;
+      margin-bottom: 6px;
+      font-size: 10px;
+      color: var(--text-muted);
     }
 
-    .result-header h3 {
-      color: #333;
+    .code-toolbar-left {
+      display: flex;
+      align-items: center;
+      gap: 6px;
     }
 
-    .status-badge {
-      padding: 6px 15px;
-      border-radius:  20px;
-      font-weight: 600;
-      font-size: 0.9em;
+    .code-pill {
+      padding: 1px 5px;
+      border-radius: 999px;
+      border: 1px solid rgba(55,65,81,0.9);
+      background: rgba(15,23,42,0.9);
     }
 
-    .status-success {
-      background: #4caf50;
-      color: white;
+    .code-badge {
+      padding: 1px 6px;
+      border-radius: 999px;
+      background: rgba(17,24,39,0.95);
+      border: 1px solid rgba(55,65,81,0.9);
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
     }
 
-    .status-error {
-      background: #f44336;
-      color: white;
+    .code-badge svg {
+      width: 10px;
+      height: 10px;
+      stroke: rgba(156,163,175,0.9);
     }
 
-    .status-warning {
-      background: #ff9800;
-      color: white;
+    .code-scroll {
+      max-height: 360px;
+      overflow: auto;
+      border-radius: 10px;
+      background: rgba(15,23,42,0.92);
+      padding: 8px 10px;
+      font-size: 12px;
+      font-family: ui-monospace, Menlo, Monaco, Consolas, "SF Mono", monospace;
+      color: #e5e7eb;
+      line-height: 1.4;
+      scrollbar-width: thin;
+      scrollbar-color: rgba(55,65,81,0.9) transparent;
     }
 
-    .result-box {
-      background: #1e1e1e;
-      color: #d4d4d4;
-      padding: 20px;
-      border-radius:  8px;
-      overflow-x: auto;
-      font-family: 'Courier New', monospace;
-      font-size: 0.95em;
-      line-height: 1.6;
-      max-height: 600px;
-      overflow-y:  auto;
+    .code-scroll::-webkit-scrollbar {
+      width: 7px;
+      height: 7px;
     }
 
-    .json-key {
-      color: #9cdcfe;
+    .code-scroll::-webkit-scrollbar-track {
+      background: transparent;
     }
 
-    .json-string {
-      color: #ce9178;
+    .code-scroll::-webkit-scrollbar-thumb {
+      background: rgba(55,65,81,0.9);
+      border-radius: 999px;
     }
 
-    .json-number {
-      color: #b5cea8;
+    .code-scroll pre {
+      margin: 0;
+      white-space: pre;
     }
 
-    .json-boolean {
-      color: #569cd6;
+    .hint-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 6px;
+      font-size: 10px;
+      color: var(--text-muted);
     }
 
-    .json-null {
-      color: #569cd6;
+    .hint-row span {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
     }
 
-    .loading {
-      display: inline-block;
-      width: 20px;
-      height: 20px;
-      border: 3px solid rgba(255,255,255,0.3);
-      border-radius: 50%;
-      border-top-color: white;
-      animation: spin 1s ease-in-out infinite;
+    .hint-dot {
+      width: 5px;
+      height: 5px;
+      border-radius: 999px;
+      background: linear-gradient(135deg, #22c55e, #a3e635);
     }
 
-    @keyframes spin {
-      to { transform: rotate(360deg); }
+    .hint-shortcut {
+      padding: 1px 5px;
+      border-radius: 999px;
+      border: 1px dashed rgba(75,85,99,0.9);
     }
 
-    .info-box {
-      background: #e3f2fd;
-      border-left: 4px solid #2196f3;
-      padding:  15px;
-      margin-bottom: 20px;
-      border-radius: 4px;
-    }
-
-    .info-box h4 {
-      color: #1976d2;
-      margin-bottom: 8px;
-    }
-
-    .info-box p {
-      color: #555;
-      line-height: 1.6;
-    }
-
-    .grid-2 {
-      display: grid;
-      grid-template-columns:  1fr 1fr;
-      gap: 15px;
-    }
-
-    @media (max-width: 768px) {
-      .grid-2 {
-        grid-template-columns: 1fr;
-      }
-
-      .header h1 {
-        font-size: 1.8em;
-      }
-
-      .tabs {
-        flex-wrap: wrap;
-      }
-    }
-
-    .copy-btn {
-      background: #4caf50;
-      color: white;
-      border: none;
-      padding: 8px 15px;
-      border-radius:  6px;
-      cursor: pointer;
-      font-size: 0.9em;
-      transition: background 0.3s;
-    }
-
-    .copy-btn:hover {
-      background: #45a049;
-    }
-
-    .highlight-box {
-      background: #fffbf0;
-      border-left: 4px solid #ffc107;
-      padding: 15px;
-      margin-bottom: 20px;
-      border-radius: 4px;
-    }
-
-    .highlight-box h4 {
-      color:  #f57c00;
-      margin-bottom: 8px;
-    }
-
-    .highlight-box p {
-      color: #555;
-      line-height: 1.6;
+    .error-text {
+      color: var(--danger);
+      font-size: 11px;
     }
   </style>
 </head>
 <body>
-  <div class="container">
-    <div class="header">
-      <h1>🚀 YesWeCheck API Tester</h1>
-      <p>Test all your email validation APIs in one place</p>
-    </div>
+  <div class="app-shell">
+    <!-- LEFT: Request -->
+    <section class="panel">
+      <div class="panel-inner">
+        <header class="panel-header">
+          <div class="panel-title">
+            <span class="panel-title-chip"></span>
+            <span>API Request Console</span>
+          </div>
+          <div class="panel-subtitle">
+            Prototype REST client pour tes endpoints
+          </div>
+        </header>
 
-    <div class="tabs">
-      <button class="tab active" onclick="switchTab('validate')">📧 Email Validation</button>
-      <button class="tab" onclick="switchTab('firstname')">👤 Firstname Enrichment</button>
-      <button class="tab" onclick="switchTab('profanity')">🤬 Profanity Check</button>
-      <button class="tab" onclick="switchTab('disposable')">🗑️ Disposable Check</button>
-      <button class="tab" onclick="switchTab('role')">👔 Role Account</button>
-      <button class="tab" onclick="switchTab('dns')">🌐 DNS Validation</button>
-      <button class="tab" onclick="switchTab('syntax')">✅ Syntax Check</button>
-    </div>
-
-    <div class="content">
-      <!-- Email Validation -->
-      <div id="validate" class="api-section active">
-        <div class="info-box">
-          <h4>📧 Complete Email Validation</h4>
-          <p>Full validation pipeline including syntax, DNS, profanity, disposable domains, role accounts, and more.</p>
+        <div class="badge-row">
+          <div class="badge-group">
+            <div class="badge badge-pill">
+              <span class="badge-dot"></span>
+              <span>Mode dev</span>
+            </div>
+            <div class="badge">
+              <span>⌘⏎</span>
+              <span>Exécuter la requête</span>
+            </div>
+          </div>
+          <button class="secondary-btn" type="button" onclick="resetForm()">
+            <svg viewBox="0 0 24 24" fill="none">
+              <path d="M4 4v6h6M20 20v-6h-6M6 14a4 4 0 0 0 6.8 2.8L16 14M18 10a4 4 0 0 0-6.8-2.8L8 10" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" />
+            </svg>
+            <span>Reset</span>
+          </button>
         </div>
 
-        <div class="examples">
-          <button class="example-btn" onclick="setEmail('validate', 'john. doe@gmail.com')">✅ Valid Email</button>
-          <button class="example-btn" onclick="setEmail('validate', 'fuck@gmail.com')">🤬 Profanity</button>
-          <button class="example-btn" onclick="setEmail('validate', 'test@tempmail.com')">🗑️ Disposable</button>
-          <button class="example-btn" onclick="setEmail('validate', 'contact@company.com')">👤 Role Account</button>
-          <button class="example-btn" onclick="setEmail('validate', 'invalid@nonexistentdomain9999.com')">❌ Invalid DNS</button>
+        <!-- Method + URL -->
+        <div class="field-grid">
+          <div class="label">Méthode</div>
+          <div class="method-select">
+            <button class="method-pill active" type="button" data-method="GET">GET</button>
+            <button class="method-pill" type="button" data-method="POST">POST</button>
+            <button class="method-pill" type="button" data-method="PUT">PUT</button>
+            <button class="method-pill" type="button" data-method="DELETE">DELETE</button>
+          </div>
         </div>
 
-        <div class="form-group">
-          <label for="email-validate">Email Address</label>
-          <input type="email" id="email-validate" placeholder="john.doe@example.com" value="john.doe@gmail.com">
+        <div class="field-grid">
+          <div class="label">Endpoint</div>
+          <input id="url-input" class="input" type="text" placeholder="https://api.example.com/v1/emails/validate" />
         </div>
 
-        <button class="btn" onclick="callAPI('validate')">
-          <span class="btn-text">Validate Email</span>
-        </button>
+        <div class="row row-space" style="margin-bottom: 8px;">
+          <div class="label">Headers</div>
+          <button class="secondary-btn" type="button" onclick="toggleAuthHeader()">
+            <svg viewBox="0 0 24 24" fill="none">
+              <path d="M12 12v4M12 8h.01M5 9a7 7 0 1 1 14 0v3a7 7 0 1 1-14 0V9Z" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" />
+            </svg>
+            <span>Auth rapide</span>
+          </button>
+        </div>
 
-        <div id="result-validate" class="result-container"></div>
+        <div class="row row-wrap" style="margin-bottom: 10px;">
+          <input id="header-key" class="input input-sm" style="max-width: 140px;" placeholder="Header key (ex: Authorization)" />
+          <input id="header-value" class="input input-sm" placeholder="Header value" />
+        </div>
+
+        <div class="row row-space" style="margin-bottom: 6px;">
+          <div class="label">Body JSON</div>
+          <span class="meta-chip">
+            <span style="width:6px;height:6px;border-radius:999px;background:var(--accent);"></span>
+            <strong>Raw</strong> JSON
+          </span>
+        </div>
+
+        <textarea id="body-input" class="textarea" spellcheck="false" placeholder='{"email": "amine@example.com"}'></textarea>
+
+        <div class="divider"></div>
+
+        <div class="row row-space">
+          <div class="response-meta" style="font-size:10px;">
+            <span class="meta-chip"><strong>Tips</strong> Edge cases, timeouts, erreurs 4xx/5xx</span>
+          </div>
+          <button class="primary-btn" type="button" onclick="sendRequest()">
+            <span class="primary-btn-icon">
+              <svg viewBox="0 0 24 24" fill="none">
+                <path d="M5 12h7M13 5l7 7-7 7" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" />
+              </svg>
+            </span>
+            <span>Send request</span>
+          </button>
+        </div>
       </div>
+    </section>
 
-      <!-- Firstname Enrichment -->
-      <div id="firstname" class="api-section">
-        <div class="highlight-box">
-          <h4>👤 Firstname Enrichment & Gender Detection</h4>
-          <p>Extract firstname from email, detect gender (M/F), estimate age based on INSEE birth data (31k+ French firstnames), and distinguish between real names vs surnames (AMBIGUOUS/LASTNAME_ONLY detection).</p>
+    <!-- RIGHT: Response -->
+    <section class="panel">
+      <div class="panel-inner">
+        <header class="panel-header">
+          <div class="panel-title">
+            <span class="panel-title-chip"></span>
+            <span>API Response Viewer</span>
+          </div>
+          <div class="panel-subtitle">
+            Status, headers & JSON retour
+          </div>
+        </header>
+
+        <div class="badge-row" style="margin-bottom: 8px;">
+          <div class="response-meta">
+            <span class="status-badge" id="status-badge">
+              <span class="status-dot"></span>
+              <span>En attente de requête</span>
+            </span>
+          </div>
+          <div class="badge-group">
+            <div class="badge">
+              <span>⌘⇧C</span>
+              <span>Copier JSON</span>
+            </div>
+          </div>
         </div>
 
-        <div class="info-box">
-          <h4>🎯 Features</h4>
-          <p>
-            ✅ <strong>Firstname extraction</strong> with confidence score (0-100)<br>
-            ✅ <strong>Gender detection</strong> (M./Mme) with 85%+ confidence threshold<br>
-            ✅ <strong>Age estimation</strong> (P25/P50/P75 quartiles) from INSEE birth years<br>
-            ✅ <strong>LASTNAME_ONLY</strong> detection (dupont, martin as surname → score 1)<br>
-            ✅ <strong>AMBIGUOUS</strong> detection (martin, thomas, gabriel → preserved scores)<br>
-            ✅ <strong>Peak decade</strong> identification (1950s, 1990s, 2010s, etc.)
-          </p>
+        <div class="response-meta" style="margin-bottom:8px;">
+          <span id="response-status">Status: -</span>
+          <span>•</span>
+          <span id="response-time">Temps: -</span>
+          <span>•</span>
+          <span id="response-size">Taille: -</span>
         </div>
 
-        <div class="examples">
-          <button class="example-btn" onclick="setEmail('firstname', 'jean.dupont@gmail.com')">✅ Jean (M, 70 ans)</button>
-          <button class="example-btn" onclick="setEmail('firstname', 'marie.martin@gmail.com')">✅ Marie (F, 68 ans)</button>
-          <button class="example-btn" onclick="setEmail('firstname', 'emma.dubois@gmail.com')">✅ Emma (F, 12 ans)</button>
-          <button class="example-btn" onclick="setEmail('firstname', 'gabriel.dupont@gmail.com')">⚠️ Gabriel (AMBIGUOUS)</button>
-          <button class="example-btn" onclick="setEmail('firstname', 'dupont.martin@gmail.com')">⚠️ Martin (LASTNAME_ONLY)</button>
-          <button class="example-btn" onclick="setEmail('firstname', 'thomas.leroy@gmail.com')">⚠️ Thomas (AMBIGUOUS high)</button>
+        <div class="tab-row">
+          <button class="tab active" type="button" data-tab="json" onclick="switchTab('json')">JSON brut</button>
+          <button class="tab" type="button" data-tab="headers" onclick="switchTab('headers')">Headers</button>
+          <button class="tab" type="button" data-tab="meta" onclick="switchTab('meta')">Meta</button>
         </div>
 
-        <div class="form-group">
-          <label for="email-firstname">Email Address</label>
-          <input type="email" id="email-firstname" placeholder="jean.dupont@example.com" value="jean.dupont@gmail.com">
+        <div class="response-container">
+          <div class="response-content">
+            <div class="code-toolbar">
+              <div class="code-toolbar-left">
+                <div class="code-pill" id="tab-label">JSON</div>
+                <div class="code-badge">
+                  <svg viewBox="0 0 24 24" fill="none">
+                    <path d="M5 7h14M5 12h8M5 17h4" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" />
+                  </svg>
+                  <span id="code-mode">Raw view</span>
+                </div>
+              </div>
+              <button class="secondary-btn" type="button" onclick="copyCurrent()">
+                <svg viewBox="0 0 24 24" fill="none">
+                  <path d="M9 9h9a1 1 0 0 1 1 1v9M7 15H6a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1h9a1 1 0 0 1 1 1v1" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" />
+                </svg>
+                <span>Copier</span>
+              </button>
+            </div>
+
+            <div id="json-view" class="code-scroll">
+              <pre id="json-output">Aucune requête envoyée pour le moment.</pre>
+            </div>
+            <div id="headers-view" class="code-scroll" style="display:none;">
+              <pre id="headers-output">Headers non disponibles.</pre>
+            </div>
+            <div id="meta-view" class="code-scroll" style="display:none;">
+              <pre id="meta-output">Meta non disponible.</pre>
+            </div>
+          </div>
         </div>
 
-        <button class="btn" onclick="callAPI('firstname')">
-          <span class="btn-text">Enrich Firstname</span>
-        </button>
+        <div class="hint-row">
+          <span>
+            <span class="hint-dot"></span>
+            <span>JSON laissé volontairement brut (aucune transformation du payload).</span>
+          </span>
+          <span class="hint-shortcut">Esc pour nettoyer</span>
+        </div>
 
-        <div id="result-firstname" class="result-container"></div>
+        <div style="margin-top:6px;font-size:10px;color:var(--text-muted);">
+          <span id="error-message" class="error-text"></span>
+        </div>
       </div>
-
-      <!-- Profanity Check -->
-      <div id="profanity" class="api-section">
-        <div class="info-box">
-          <h4>🤬 Profanity Detection</h4>
-          <p>Check if an email contains inappropriate language.  Detects leetspeak (sh1t → shit) and special characters (f*ck → fuck).</p>
-        </div>
-
-        <div class="examples">
-          <button class="example-btn" onclick="setEmail('profanity', 'john.doe@gmail.com')">✅ Clean</button>
-          <button class="example-btn" onclick="setEmail('profanity', 'fuck@test.com')">High Severity</button>
-          <button class="example-btn" onclick="setEmail('profanity', 'sh1thead@test.com')">Leetspeak</button>
-          <button class="example-btn" onclick="setEmail('profanity', 'connard123@test.fr')">French</button>
-          <button class="example-btn" onclick="setEmail('profanity', 'f*ck. off@test.com')">Special Chars</button>
-        </div>
-
-        <div class="form-group">
-          <label for="email-profanity">Email Address</label>
-          <input type="email" id="email-profanity" placeholder="test@example.com" value="john.doe@gmail.com">
-        </div>
-
-        <button class="btn" onclick="callAPI('profanity')">
-          <span class="btn-text">Check Profanity</span>
-        </button>
-
-        <div id="result-profanity" class="result-container"></div>
-      </div>
-
-      <!-- Disposable Check -->
-      <div id="disposable" class="api-section">
-        <div class="info-box">
-          <h4>🗑️ Disposable Email Detection</h4>
-          <p>Check if an email uses a temporary/disposable domain. Database of 55,000+ known providers.</p>
-        </div>
-
-        <div class="examples">
-          <button class="example-btn" onclick="setEmail('disposable', 'john@gmail.com')">✅ Valid</button>
-          <button class="example-btn" onclick="setEmail('disposable', 'test@tempmail.com')">TempMail</button>
-          <button class="example-btn" onclick="setEmail('disposable', 'user@guerrillamail.com')">GuerrillaMail</button>
-          <button class="example-btn" onclick="setEmail('disposable', 'hello@10minutemail.com')">10MinuteMail</button>
-          <button class="example-btn" onclick="setEmail('disposable', 'test@mailinator.com')">Mailinator</button>
-        </div>
-
-        <div class="form-group">
-          <label for="email-disposable">Email Address</label>
-          <input type="email" id="email-disposable" placeholder="test@example.com" value="john@gmail.com">
-        </div>
-
-        <button class="btn" onclick="callAPI('disposable')">
-          <span class="btn-text">Check Disposable</span>
-        </button>
-
-        <div id="result-disposable" class="result-container"></div>
-      </div>
-
-      <!-- Role Account -->
-      <div id="role" class="api-section">
-        <div class="info-box">
-          <h4>👔 Role Account Detection</h4>
-          <p>Detect generic role-based email addresses (info@, contact@, admin@, support@, etc.).</p>
-        </div>
-
-        <div class="examples">
-          <button class="example-btn" onclick="setEmail('role', 'john.doe@company.com')">✅ Personal</button>
-          <button class="example-btn" onclick="setEmail('role', 'contact@company.com')">contact@</button>
-          <button class="example-btn" onclick="setEmail('role', 'info@company.com')">info@</button>
-          <button class="example-btn" onclick="setEmail('role', 'admin@company.com')">admin@</button>
-          <button class="example-btn" onclick="setEmail('role', 'support@company.com')">support@</button>
-        </div>
-
-        <div class="form-group">
-          <label for="email-role">Email Address</label>
-          <input type="email" id="email-role" placeholder="test@example.com" value="john.doe@company.com">
-        </div>
-
-        <button class="btn" onclick="callAPI('role')">
-          <span class="btn-text">Check Role Account</span>
-        </button>
-
-        <div id="result-role" class="result-container"></div>
-      </div>
-
-      <!-- DNS Validation -->
-      <div id="dns" class="api-section">
-        <div class="info-box">
-          <h4>🌐 DNS/MX Record Validation</h4>
-          <p>Verify that the email domain has valid MX records and can receive emails.</p>
-        </div>
-
-        <div class="examples">
-          <button class="example-btn" onclick="setEmail('dns', 'test@gmail.com')">✅ Gmail</button>
-          <button class="example-btn" onclick="setEmail('dns', 'test@yahoo.com')">✅ Yahoo</button>
-          <button class="example-btn" onclick="setEmail('dns', 'test@outlook.com')">✅ Outlook</button>
-          <button class="example-btn" onclick="setEmail('dns', 'test@nonexistent9999.com')">❌ Invalid</button>
-        </div>
-
-        <div class="form-group">
-          <label for="email-dns">Email Address</label>
-          <input type="email" id="email-dns" placeholder="test@example.com" value="test@gmail.com">
-        </div>
-
-        <button class="btn" onclick="callAPI('dns')">
-          <span class="btn-text">Validate DNS</span>
-        </button>
-
-        <div id="result-dns" class="result-container"></div>
-      </div>
-
-      <!-- Syntax Check -->
-      <div id="syntax" class="api-section">
-        <div class="info-box">
-          <h4>✅ Syntax Validation</h4>
-          <p>Basic email syntax validation according to RFC standards. </p>
-        </div>
-
-        <div class="examples">
-          <button class="example-btn" onclick="setEmail('syntax', 'valid@email.com')">✅ Valid</button>
-          <button class="example-btn" onclick="setEmail('syntax', 'invalid. email')">❌ No @</button>
-          <button class="example-btn" onclick="setEmail('syntax', '@nodomain.com')">❌ No local</button>
-          <button class="example-btn" onclick="setEmail('syntax', 'space @email.com')">❌ Space</button>
-          <button class="example-btn" onclick="setEmail('syntax', 'double@@email.com')">❌ Double @</button>
-        </div>
-
-        <div class="form-group">
-          <label for="email-syntax">Email Address</label>
-          <input type="email" id="email-syntax" placeholder="test@example.com" value="valid@email.com">
-        </div>
-
-        <button class="btn" onclick="callAPI('syntax')">
-          <span class="btn-text">Check Syntax</span>
-        </button>
-
-        <div id="result-syntax" class="result-container"></div>
-      </div>
-    </div>
+    </section>
   </div>
 
   <script>
-    const API_BASE = 'https://email. yeswecheck.fr/api/v1';
+    let currentMethod = "GET";
+    let lastResponseBody = "";
+    let lastResponseHeaders = "";
+    let lastMeta = "";
 
-    const API_ENDPOINTS = {
-      validate: {
-        url: '/validate',
-        method: 'POST',
-        body: (email) => ({ email })
-      },
-      firstname: {
-        url: '/firstname-enrichment/enrich',
-        method: 'POST',
-        body: (email) => ({ email })
-      },
-      profanity: {
-        url: '/profanity/check',
-        method: 'POST',
-        body: (email) => ({ email })
-      },
-      disposable: {
-        url: '/disposable-email/check',
-        method: 'POST',
-        body: (email) => ({ email })
-      },
-      role: {
-        url: '/role-account/check',
-        method: 'POST',
-        body: (email) => ({ email })
-      },
-      dns: {
-        url:  '/validate/dns',
-        method: 'POST',
-        body: (email) => ({ email })
-      },
-      syntax: {
-        url: '/validate/syntax',
-        method: 'POST',
-        body: (email) => ({ email })
+    // Méthodes (pills)
+    document.querySelectorAll(".method-pill").forEach(btn => {
+      btn.addEventListener("click", () => {
+        document.querySelectorAll(".method-pill").forEach(b => b.classList.remove("active"));
+        btn.classList.add("active");
+        currentMethod = btn.getAttribute("data-method");
+      });
+    });
+
+    function resetForm() {
+      document.getElementById("url-input").value = "";
+      document.getElementById("header-key").value = "";
+      document.getElementById("header-value").value = "";
+      document.getElementById("body-input").value = "";
+      document.getElementById("json-output").textContent = "Aucune requête envoyée pour le moment.";
+      document.getElementById("headers-output").textContent = "Headers non disponibles.";
+      document.getElementById("meta-output").textContent = "Meta non disponible.";
+      document.getElementById("status-badge").innerHTML = '<span class="status-dot"></span><span>En attente de requête</span>';
+      document.getElementById("response-status").textContent = "Status: -";
+      document.getElementById("response-time").textContent = "Temps: -";
+      document.getElementById("response-size").textContent = "Taille: -";
+      document.getElementById("error-message").textContent = "";
+    }
+
+    function toggleAuthHeader() {
+      const keyInput = document.getElementById("header-key");
+      const valueInput = document.getElementById("header-value");
+      if (keyInput.value.toLowerCase() === "authorization") {
+        keyInput.value = "";
+        valueInput.value = "";
+      } else {
+        keyInput.value = "Authorization";
+        valueInput.placeholder = "Bearer xxxxx";
+        valueInput.focus();
       }
-    };
-
-    function switchTab(tabName) {
-      // Update tabs
-      document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
-      event.target.classList.add('active');
-
-      // Update sections
-      document.querySelectorAll('.api-section').forEach(section => section.classList.remove('active'));
-      document.getElementById(tabName).classList.add('active');
     }
 
-    function setEmail(section, email) {
-      document.getElementById(`email-${section}`).value = email;
+    function switchTab(tab) {
+      document.querySelectorAll(".tab").forEach(t => t.classList.remove("active"));
+      document.querySelector('.tab[data-tab="' + tab + '"]').classList.add("active");
+
+      document.getElementById("json-view").style.display = tab === "json" ? "block" : "none";
+      document.getElementById("headers-view").style.display = tab === "headers" ? "block" : "none";
+      document.getElementById("meta-view").style.display = tab === "meta" ? "block" : "none";
+
+      const tabLabel = document.getElementById("tab-label");
+      const codeMode = document.getElementById("code-mode");
+
+      if (tab === "json") {
+        tabLabel.textContent = "JSON";
+        codeMode.textContent = "Raw view";
+      } else if (tab === "headers") {
+        tabLabel.textContent = "Headers";
+        codeMode.textContent = "Key/Value";
+      } else {
+        tabLabel.textContent = "Meta";
+        codeMode.textContent = "Debug info";
+      }
     }
 
-    async function callAPI(apiName) {
-      const email = document.getElementById(`email-${apiName}`).value;
-      const resultContainer = document.getElementById(`result-${apiName}`);
-      const btn = event.target. closest('.btn');
-      const btnText = btn.querySelector('.btn-text');
+    async function sendRequest() {
+      const url = document.getElementById("url-input").value.trim();
+      const headerKey = document.getElementById("header-key").value.trim();
+      const headerValue = document.getElementById("header-value").value.trim();
+      const bodyRaw = document.getElementById("body-input").value.trim();
+      const errorMessage = document.getElementById("error-message");
 
-      if (!email) {
-        alert('Please enter an email address');
+      errorMessage.textContent = "";
+
+      if (!url) {
+        errorMessage.textContent = "URL manquante.";
         return;
       }
 
-      // Show loading
-      btn.disabled = true;
-      btnText.innerHTML = '<span class="loading"></span> Loading...';
+      let headers = {};
+      if (headerKey && headerValue) {
+        headers[headerKey] = headerValue;
+      }
+      if (currentMethod !== "GET" && bodyRaw) {
+        headers["Content-Type"] = "application/json";
+      }
 
-      const endpoint = API_ENDPOINTS[apiName];
-      const url = API_BASE + endpoint.url;
+      let payload;
+      if (currentMethod !== "GET" && bodyRaw) {
+        try {
+          // On parse uniquement pour vérifier que le JSON n'est pas cassé
+          JSON.parse(bodyRaw);
+          payload = bodyRaw;
+        } catch (e) {
+          errorMessage.textContent = "JSON invalide dans le body.";
+          return;
+        }
+      }
+
+      const start = performance.now();
+      document.getElementById("status-badge").innerHTML =
+        '<span class="status-dot"></span><span>Requête en cours...</span>';
+      document.getElementById("json-output").textContent = "…";
+      document.getElementById("headers-output").textContent = "…";
+      document.getElementById("meta-output").textContent = "…";
 
       try {
-        const startTime = Date.now();
         const response = await fetch(url, {
-          method: endpoint.method,
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify(endpoint.body(email))
+          method: currentMethod,
+          headers,
+          body: currentMethod === "GET" ? undefined : payload
         });
 
-        const executionTime = Date.now() - startTime;
-        const data = await response.json();
+        const end = performance.now();
+        const time = Math.round(end - start);
 
-        // Add execution time if not already present
-        if (!data. executionTime) {
-          data._executionTime = executionTime + 'ms';
+        const clone = response.clone();
+        let bodyText;
+        try {
+          bodyText = await clone.text();
+        } catch {
+          bodyText = "<no body>";
         }
 
-        displayResult(resultContainer, data, response. ok);
-      } catch (error) {
-        displayResult(resultContainer, {
-          error: error.message,
-          details: 'Failed to connect to API.  Make sure the server is running at https://email.yeswecheck.fr'
-        }, false);
-      } finally {
-        btn.disabled = false;
-        btnText.textContent = getButtonText(apiName);
-      }
-    }
+        const size = bodyText ? new Blob([bodyText]).size : 0;
 
-    function getButtonText(apiName) {
-      const texts = {
-        validate: 'Validate Email',
-        firstname:  'Enrich Firstname',
-        profanity: 'Check Profanity',
-        disposable: 'Check Disposable',
-        role: 'Check Role Account',
-        dns:  'Validate DNS',
-        syntax: 'Check Syntax'
-      };
-      return texts[apiName] || 'Submit';
-    }
+        lastResponseBody = bodyText || "";
+        lastResponseHeaders = "";
+        response.headers.forEach((value, key) => {
+          lastResponseHeaders += key + ": " + value + "\n";
+        });
 
-    function displayResult(container, data, isSuccess) {
-      const status = getStatus(data, isSuccess);
-      const formattedJSON = syntaxHighlight(JSON.stringify(data, null, 2));
+        lastMeta =
+          "URL: " + url + "\n" +
+          "Method: " + currentMethod + "\n" +
+          "Status: " + response.status + " " + (response.statusText || "") + "\n" +
+          "Time: " + time + " ms\n" +
+          "Size: " + size + " bytes\n";
 
-      container.innerHTML = `
-        <div class="result-header">
-          <h3>📊 Result</h3>
-          <div>
-            <span class="status-badge ${status.class}">${status. text}</span>
-            <button class="copy-btn" onclick="copyResult(this)" style="margin-left: 10px;">📋 Copy JSON</button>
-          </div>
-        </div>
-        <div class="result-box">${formattedJSON}</div>
-      `;
-
-      container.classList.add('show');
-      container.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-    }
-
-    function getStatus(data, isSuccess) {
-      if (! isSuccess) {
-        return { class: 'status-error', text: '❌ Error' };
-      }
-
-      // Firstname enrichment success
-      if (data.firstName && data.firstNameConfidence >= 70) {
-        return { class: 'status-success', text: '✅ Success' };
-      }
-
-      if (data.isValid === false || data.hasProfanity === true || data.isDisposable === true) {
-        return { class: 'status-error', text: '❌ Failed' };
-      }
-
-      if (data.score && data.score < 70) {
-        return { class:  'status-warning', text: '⚠️ Warning' };
-      }
-
-      if (data.isRole === true) {
-        return { class: 'status-warning', text: '⚠️ Role Account' };
-      }
-
-      return { class: 'status-success', text: '✅ Success' };
-    }
-
-    function syntaxHighlight(json) {
-      json = json.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-      return json.replace(/("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?)/g, function (match) {
-        let cls = 'json-number';
-        if (/^"/.test(match)) {
-          if (/:  $/.test(match)) {
-            cls = 'json-key';
-          } else {
-            cls = 'json-string';
-          }
-        } else if (/true|false/.test(match)) {
-          cls = 'json-boolean';
-        } else if (/null/.test(match)) {
-          cls = 'json-null';
+        // Status badge
+        const badge = document.getElementById("status-badge");
+        if (response.ok) {
+          badge.innerHTML = '<span class="status-dot"></span><span>Succès (' + response.status + ')</span>';
+        } else {
+          badge.innerHTML =
+            '<span class="status-dot" style="background:radial-gradient(circle at 30% 0,#fecaca,#ef4444);box-shadow:0 0 10px rgba(239,68,68,0.9);"></span>' +
+            '<span>Erreur (' + response.status + ')</span>';
         }
-        return '<span class="' + cls + '">' + match + '</span>';
-      });
+
+        document.getElementById("response-status").textContent =
+          "Status: " + response.status + " " + (response.statusText || "");
+        document.getElementById("response-time").textContent = "Temps: " + time + " ms";
+        document.getElementById("response-size").textContent = "Taille: " + size + " bytes";
+
+        document.getElementById("json-output").textContent = bodyText || "<empty>";
+        document.getElementById("headers-output").textContent =
+          lastResponseHeaders || "Aucun header renvoyé.";
+        document.getElementById("meta-output").textContent = lastMeta;
+      } catch (err) {
+        document.getElementById("status-badge").innerHTML =
+          '<span class="status-dot" style="background:radial-gradient(circle at 30% 0,#fecaca,#ef4444);box-shadow:0 0 10px rgba(239,68,68,0.9);"></span>' +
+          '<span>Erreur réseau</span>';
+        document.getElementById("json-output").textContent = String(err);
+        document.getElementById("headers-output").textContent = "Headers non disponibles.";
+        document.getElementById("meta-output").textContent = "Requête échouée.";
+        errorMessage.textContent = "Impossible d'appeler l'API (" + err.message + ").";
+      }
     }
 
-    function copyResult(btn) {
-      const resultBox = btn.closest('.result-container').querySelector('.result-box');
-      const text = resultBox.innerText;
+    function copyCurrent() {
+      const activeTab = document.querySelector(".tab.active").getAttribute("data-tab");
+      let text = "";
+      if (activeTab === "json") {
+        text = document.getElementById("json-output").textContent || "";
+      } else if (activeTab === "headers") {
+        text = document.getElementById("headers-output").textContent || "";
+      } else {
+        text = document.getElementById("meta-output").textContent || "";
+      }
+      if (!text) return;
 
-      navigator.clipboard.writeText(text).then(() => {
-        const originalText = btn.textContent;
-        btn. textContent = '✅ Copied!';
-        btn.style.background = '#4caf50';
-
-        setTimeout(() => {
-          btn.textContent = originalText;
-          btn.style.background = '';
-        }, 2000);
-      });
+      navigator.clipboard.writeText(text).catch(() => {});
     }
+
+    // Raccourcis clavier
+    window.addEventListener("keydown", (e) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
+        e.preventDefault();
+        sendRequest();
+      }
+      if (e.key === "Escape") {
+        resetForm();
+      }
+    });
   </script>
 </body>
 </html>
