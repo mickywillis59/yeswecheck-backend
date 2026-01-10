@@ -15,42 +15,42 @@ export class InseeFirstname {
   @Index()
   firstname: string;
 
-  @Column({ type: 'int', default: 0 })
+  @Column({ name: 'male_count', type: 'int', default: 0 })
   maleCount: number;
 
-  @Column({ type: 'int', default: 0 })
+  @Column({ name: 'female_count', type: 'int', default: 0 })
   femaleCount: number;
 
-  @Column({ type: 'int', default: 0 })
+  @Column({ name: 'total_count', type: 'int', default: 0 })
   totalCount: number;
 
-  @Column({ type: 'float', default: 0 })
+  @Column({ name: 'gender_ratio', type: 'float', default: 0 })
   genderRatio: number;
 
-  @Column({ type: 'char', length: 1, nullable: true })
-  dominantGender: string;
+  @Column({ name: 'dominant_gender', type: 'varchar', length: 1, nullable: true })
+  dominantGender: string | null;
 
-  @Column({ type: 'jsonb', default: [] })
+  @Column({ name: 'birth_years', type: 'jsonb', default: [] })
   birthYears: any[];
 
-  @Column({ type: 'int', nullable: true })
-  estimatedAge: number;
+  @Column({ name:  'estimated_age', type: 'int', nullable: true })
+  estimatedAge: number | null;
 
-  @Column({ type: 'int', nullable: true })
-  ageP25: number;
+  @Column({ name: 'age_p25', type: 'int', nullable: true })
+  ageP25: number | null;
 
-  @Column({ type: 'int', nullable: true })
-  ageP50: number;
+  @Column({ name: 'age_p50', type: 'int', nullable: true })
+  ageP50: number | null;
 
-  @Column({ type: 'int', nullable: true })
-  ageP75: number;
+  @Column({ name:  'age_p75', type: 'int', nullable: true })
+  ageP75: number | null;
 
-  @Column({ nullable: true })
-  peakDecade: string;
+  @Column({ name: 'peak_decade', type: 'varchar', nullable: true })  // ✅ FIX ICI
+  peakDecade:  string | null;
 
   @Column({ default: 'insee' })
   source: string;
 
-  @CreateDateColumn()
+  @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
 }

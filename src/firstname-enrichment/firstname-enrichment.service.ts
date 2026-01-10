@@ -1,9 +1,8 @@
-import { Injectable, ConflictException, OnModuleInit } from '@nestjs/common';
+import { Injectable, OnModuleInit, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { InseeFirstname } from './entities/insee-firstname.entity';
-import { CreateFirstnameDto } from './dto/create-firstname.dto';
-import { EnrichmentResponseDto } from './dto/enrichment-response.dto';
+import { AmbiguousFirstname } from './entities/ambiguous-firstname.entity';
 import Redis from 'ioredis';
 
 interface FirstnameData {
@@ -11,7 +10,7 @@ interface FirstnameData {
   femaleCount: number;
   totalCount: number;
   genderRatio: number;
-  dominantGender: string | null;
+  dominantGender:  'M' | 'F' | null;
   estimatedAge: number | null;
   ageP25: number | null;
   ageP50: number | null;
@@ -19,12 +18,19 @@ interface FirstnameData {
   peakDecade: string | null;
 }
 
+interface TokenInfo {
+  type: 'AMBIGUOUS' | 'LASTNAME_ONLY';
+  lastnameFrequency: 'high' | 'medium' | 'low';
+}
+
 @Injectable()
 export class FirstnameEnrichmentService implements OnModuleInit {
+  private readonly logger = new Logger(FirstnameEnrichmentService.name);
   private redisClient: Redis;
-  private readonly REDIS_PREFIX = 'firstname:';
+  private readonly REDIS_PREFIX = 'firstname: ';
+  private readonly REDIS_TTL = 60 * 60 * 24;
+  private tokenInfoMap: Map<string, TokenInfo> = new Map();
 
-  // Blacklist tokens
   private readonly BLACKLIST_TOKENS = new Set([
     'contact',
     'info',
@@ -38,378 +44,485 @@ export class FirstnameEnrichmentService implements OnModuleInit {
     'reply',
     'noreply',
     'service',
+    'notification',
+    'donotreply',
+    'do-not-reply',
+    'mailer-daemon',
+    'postmaster',
   ]);
 
   constructor(
     @InjectRepository(InseeFirstname)
     private readonly firstnameRepository: Repository<InseeFirstname>,
+    @InjectRepository(AmbiguousFirstname)
+    private readonly ambiguousRepository: Repository<AmbiguousFirstname>,
   ) {
-    // Connexion Redis
     this.redisClient = new Redis({
-      host: 'localhost',
-      port: 6379,
+      host: process.env.REDIS_HOST || 'localhost',
+      port:  parseInt(process.env.REDIS_PORT || '6379', 10),
       db: 0,
     });
   }
 
-  /**
-   * Charger tous les prénoms en Redis au démarrage
-   */
   async onModuleInit() {
-    await this.loadFirstnamesToRedis();
+    await this.loadTopFirstnamesToRedis();
+    await this.loadTokenInfo();
   }
 
-  /**
-   * Charger les prénoms de DB vers Redis
-   */
-  private async loadFirstnamesToRedis() {
-    // Check if already loaded
-    const keys = await this.redisClient.keys(`${this.REDIS_PREFIX}*`);
+  private async loadTokenInfo() {
+    this.logger.log('🔄 Loading token info (ambiguous + lastname_only)...');
+    try {
+      const tokens = await this.ambiguousRepository.find({
+        select: ['firstname', 'tokenType', 'lastnameFrequency'],
+      });
 
-    if (keys.length === 0) {
-      console.log('Loading firstname data to Redis...');
+      this.tokenInfoMap = new Map(
+        tokens.map((t) => [
+          t.firstname. toLowerCase(),
+          {
+            type: t.tokenType,
+            lastnameFrequency: t.lastnameFrequency,
+          },
+        ]),
+      );
 
-      const batchSize = 5000;
-      let offset = 0;
-      let total = 0;
+      const ambiguousCount = tokens.filter((t) => t.tokenType === 'AMBIGUOUS').length;
+      const lastnameOnlyCount = tokens.filter((t) => t.tokenType === 'LASTNAME_ONLY').length;
 
-      while (true) {
-        const firstnames = await this.firstnameRepository.find({
-          skip: offset,
-          take: batchSize,
-        });
-
-        if (firstnames.length === 0) break;
-
-        // Store each firstname data in Redis
-        const pipeline = this.redisClient.pipeline();
-
-        for (const fn of firstnames) {
-          const key = `${this.REDIS_PREFIX}${fn.firstname}`;
-          const data = {
-            maleCount: fn.maleCount,
-            femaleCount: fn.femaleCount,
-            totalCount: fn.totalCount,
-            genderRatio: fn.genderRatio,
-            dominantGender: fn.dominantGender,
-            estimatedAge: fn.estimatedAge,
-            ageP25: fn.ageP25,
-            ageP50: fn.ageP50,
-            ageP75: fn.ageP75,
-            peakDecade: fn.peakDecade,
-          };
-          pipeline.set(key, JSON.stringify(data));
-        }
-
-        await pipeline.exec();
-        total += firstnames.length;
-        offset += batchSize;
-
-        console.log(`Loaded ${total} firstnames to Redis...`);
-
-        if (firstnames.length < batchSize) break;
-      }
-
-      console.log(`✅ Total ${total} firstnames loaded to Redis`);
-    } else {
-      console.log(`✅ Redis already has ${keys.length} firstnames`);
+      this.logger.log(`✅ Loaded ${this.tokenInfoMap.size} tokens (${ambiguousCount} ambiguous, ${lastnameOnlyCount} lastname_only)`);
+    } catch (error) {
+      this.logger.warn('⚠️ Could not load token info, continuing without ambiguity detection');
     }
   }
 
-  /**
-   * Normalize string with NFKD and lowercase
-   */
-  private normalize(str: string): string {
-    return str
-      .normalize('NFKD')
-      .replace(/[\u0300-\u036f]/g, '') // Remove accents
-      .toLowerCase();
+  private getTokenInfo(token: string): TokenInfo | null {
+    return this.tokenInfoMap.get(token.toLowerCase()) || null;
   }
 
-  /**
-   * Extract and normalize email local part
-   */
-  private extractLocalPart(email: string): string | null {
-    const parts = email.split('@');
-    if (parts.length < 2) return null;
-
-    let local = parts[0];
-
-    // Normalize
-    local = this.normalize(local);
-
-    // Convert separators to dots (but NOT hyphens - they're for compound names)
-    local = local.replace(/[_+]/g, '.');
-
-    // Remove non-alphanumeric except dots and hyphens
-    local = local.replace(/[^a-z0-9.\-]/g, '');
-
-    return local;
+  private isAmbiguousFirstname(token: string): boolean {
+    return this.getTokenInfo(token)?.type === 'AMBIGUOUS';
   }
 
-  /**
-   * Clean a token (remove digits at prefix/suffix, keep hyphens)
-   */
-  private cleanToken(token: string): string {
-    // Remove digits at start
-    token = token.replace(/^\d+/, '');
-    // Remove digits at end
-    token = token.replace(/\d+$/, '');
-    // Remove punctuation except hyphens
-    token = token.replace(/[^a-z\-]/g, '');
-    return token;
+  private isLastnameOnly(token: string): boolean {
+    return this. getTokenInfo(token)?.type === 'LASTNAME_ONLY';
   }
 
-  /**
-   * Tokenize and filter the local part
-   */
-  private tokenize(localPart: string): string[] {
-    const tokens = localPart.split('.');
+  private async loadTopFirstnamesToRedis() {
+    this.logger.log('Loading top firstname data to Redis...');
+    try {
+      const firstnames = await this.firstnameRepository.find({
+        take: 5000,
+        order: { totalCount: 'DESC' },
+      });
 
-    return tokens
-      .map((t) => t.trim())
-      .filter((t) => t.length > 0)
-      .map((t) => this.cleanToken(t))
-      .filter((t) => t.length >= 2) // Filter tokens < 2 chars
-      .filter((t) => !this.BLACKLIST_TOKENS.has(t)); // Filter blacklist
+      if (firstnames. length === 0) {
+        this.logger.log('✅ Total 0 firstnames loaded to Redis');
+        return;
+      }
+
+      for (const fn of firstnames) {
+        const data: FirstnameData = {
+          maleCount: fn. maleCount,
+          femaleCount: fn.femaleCount,
+          totalCount: fn.totalCount,
+          genderRatio: fn.genderRatio,
+          dominantGender: fn.dominantGender as 'M' | 'F' | null,
+          estimatedAge: fn.estimatedAge,
+          ageP25: fn.ageP25,
+          ageP50: fn. ageP50,
+          ageP75: fn.ageP75,
+          peakDecade: fn.peakDecade,
+        };
+
+        await this. redisClient.set(
+          `${this.REDIS_PREFIX}${fn.firstname}`,
+          JSON.stringify(data),
+          'EX',
+          this.REDIS_TTL,
+        );
+      }
+
+      this.logger.log(`✅ Loaded ${firstnames. length} top firstnames to Redis`);
+    } catch (error) {
+      this.logger.error('Error loading firstnames to Redis:', error);
+    }
   }
 
-  /**
-   * Get firstname data from Redis
-   */
-  private async getFirstnameData(
-    firstname: string,
-  ): Promise<FirstnameData | null> {
-    const key = `${this.REDIS_PREFIX}${firstname}`;
-    const data = await this.redisClient.get(key);
-
-    if (!data) return null;
+  private async getFirstnameData(firstname: string): Promise<FirstnameData | null> {
+    const key = `${this.REDIS_PREFIX}${firstname. toLowerCase()}`;
 
     try {
-      return JSON.parse(data) as FirstnameData;
-    } catch {
+      const cached = await this.redisClient. get(key);
+      if (cached) {
+        if (cached === 'null') return null;
+        return JSON.parse(cached);
+      }
+
+      const row = await this.firstnameRepository.findOne({
+        where: { firstname:  firstname.toLowerCase() },
+      });
+
+      if (!row) {
+        await this.redisClient.set(key, 'null', 'EX', this.REDIS_TTL);
+        return null;
+      }
+
+      const data:  FirstnameData = {
+        maleCount: row.maleCount,
+        femaleCount:  row.femaleCount,
+        totalCount: row.totalCount,
+        genderRatio: row.genderRatio,
+        dominantGender: row.dominantGender as 'M' | 'F' | null,
+        estimatedAge: row. estimatedAge,
+        ageP25: row.ageP25,
+        ageP50: row.ageP50,
+        ageP75: row.ageP75,
+        peakDecade: row.peakDecade,
+      };
+
+      await this.redisClient. set(key, JSON.stringify(data), 'EX', this.REDIS_TTL);
+
+      return data;
+    } catch (error) {
+      this.logger.error(`Error fetching firstname data for ${firstname}: `, error);
       return null;
     }
   }
 
-  /**
-   * Calculate score for a token
-   */
+  private calculateModernityFactor(data: FirstnameData, isAmbiguous: boolean): number {
+    if (! isAmbiguous) {
+      return 1.0;
+    }
+
+    const peakDecade = data.peakDecade || '1970s';
+    const estimatedAge = data.estimatedAge;
+
+    if (estimatedAge === null || estimatedAge === undefined) {
+      const decadeYear = parseInt(peakDecade. replace('s', ''), 10);
+      if (decadeYear >= 2000) return 1.15;
+      if (decadeYear >= 1990) return 1.08;
+      if (decadeYear >= 1980) return 1.0;
+      if (decadeYear >= 1960) return 0.92;
+      return 0.85;
+    }
+
+    const decadeYear = parseInt(peakDecade.replace('s', ''), 10);
+
+    if (decadeYear < 1970 && estimatedAge < 40) {
+      return 1.12;
+    }
+
+    if (estimatedAge <= 25) return 1.15;
+    if (estimatedAge <= 35) return 1.10;
+    if (estimatedAge <= 45) return 1.05;
+    if (estimatedAge <= 55) return 1.0;
+    if (estimatedAge <= 70) return 0.92;
+    return 0.85;
+  }
+
+  private async calculateFirstnameStrength(token: string): Promise<number> {
+    if (this.isLastnameOnly(token)) {
+      return 0.0;
+    }
+
+    const data = await this.getFirstnameData(token);
+    if (!data) return 0;
+
+    const totalCount = data.totalCount || 0;
+    const freqScore = Math.min(Math.log10(totalCount + 1) / 6.5, 1.0);
+
+    const isAmb = this.isAmbiguousFirstname(token);
+    const modernityFactor = this.calculateModernityFactor(data, isAmb);
+
+    let ambiguityPenalty = 1.0;
+
+    if (isAmb) {
+      const tokenInfo = this.getTokenInfo(token);
+      const peakDecade = data.peakDecade || '1970s';
+      const decadeYear = parseInt(peakDecade.replace('s', ''), 10);
+
+      const freqPenaltyMap = {
+        high: 0.75,
+        medium: 0.90,
+        low: 0.98,
+      };
+      const baseAmbiguityPenalty = freqPenaltyMap[tokenInfo?.lastnameFrequency || 'medium'];
+
+      if (decadeYear < 1970) {
+        ambiguityPenalty = baseAmbiguityPenalty;
+      } else if (decadeYear < 1990) {
+        ambiguityPenalty = Math.min(baseAmbiguityPenalty + 0.05, 0.95);
+      } else {
+        ambiguityPenalty = 0.95;
+      }
+    }
+
+    return freqScore * modernityFactor * ambiguityPenalty;
+  }
+
+  private calculateAmbiguityFactor(
+    token: string,
+    position: number,
+    totalTokens: number,
+    token0FirstnameStrength: number,
+  ): number {
+    const isTwoTokens = totalTokens === 2;
+
+    if (this.isLastnameOnly(token) && position === 0) {
+      return 0.05;
+    }
+
+    if (this.isLastnameOnly(token) && position === 1) {
+      if (token0FirstnameStrength >= 0.70) {
+        return 0.05;
+      } else {
+        return 0.15;
+      }
+    }
+
+    const isAmb = this.isAmbiguousFirstname(token);
+
+    if (position === 0 && !isAmb && ! this.isLastnameOnly(token)) {
+      return isTwoTokens ? 1.25 : 1.15;
+    }
+
+    if (position === 0 && isAmb) {
+      return isTwoTokens ? 0.85 : 0.9;
+    }
+
+    if (position === 1 && !isAmb && !this.isLastnameOnly(token)) {
+      return isTwoTokens ? 1.15 : 1.05;
+    }
+
+    if (position === 1 && isAmb) {
+      if (isTwoTokens) {
+        if (token0FirstnameStrength >= 0.75) {
+          return 0.80;
+        }
+        if (token0FirstnameStrength === 0.0) {
+          return 1.30;
+        }
+        if (token0FirstnameStrength <= 0.20) {
+          return 1.15;
+        }
+        return 0.95;
+      }
+      return 0.9;
+    }
+
+    if (isAmb) return 0.9;
+
+    return 1.0;
+  }
+
   private async calculateScore(
     token: string,
     position: number,
     totalTokens: number,
-  ): Promise<{ token: string; score: number; data: FirstnameData | null }> {
+    token0FirstnameStrength: number,
+  ): Promise<{ token: string; score: number; data: FirstnameData | null; tokenType: string }> {
+    if (this.isLastnameOnly(token)) {
+      const minScore = token0FirstnameStrength === 0.0 && position === 1 ? 2.0 : 0.5;
+
+      return {
+        token,
+        score: minScore,
+        data: null,
+        tokenType: 'LASTNAME_ONLY',
+      };
+    }
+
     const data = await this.getFirstnameData(token);
 
     if (!data) {
-      return { token, score: 0, data: null };
+      return {
+        token,
+        score: 0,
+        data: null,
+        tokenType: 'UNKNOWN',
+      };
     }
 
     const totalCount = data.totalCount || 0;
+    const freqScore = Math.min(Math.log10(totalCount + 1) / 6.5, 1.0);
 
-    // Frequency score (0-1)
-    const freqScore = Math.min(Math.log10(totalCount + 1) / 5, 1.0);
-
-    // Length score
     const len = token.length;
     let lengthScore = 1.0;
     if (len < 3) lengthScore = 0.7;
     else if (len > 15) lengthScore = 0.8;
     else if (len >= 3 && len <= 10) lengthScore = 1.0;
 
-    // Position bonus
     let positionBonus = 1.0;
-    if (totalTokens === 2 && position === 1) {
-      positionBonus = 1.15; // Second token in 2-token pattern (likely martin.jean)
-    } else if (position === 0) {
-      positionBonus = 1.1; // First token
+    if (position === 0) {
+      positionBonus = 1.08;
+    } else if (position === 1 && totalTokens === 2) {
+      positionBonus = 1.05;
     }
 
-    // Purity bonus (pure gender vs ambiguous)
     const genderRatio = data.genderRatio || 0;
-    const purityBonus = genderRatio > 0.8 ? 1.05 : 1.0;
+    const purityBonus = genderRatio > 0.85 ? 1.05 : genderRatio > 0.7 ? 1.02 : 1.0;
 
-    // Final score (guaranteed 0-100)
-    const finalScore = Math.min(
-      100 * freqScore * lengthScore * positionBonus * purityBonus,
-      100,
-    );
+    const isAmb = this.isAmbiguousFirstname(token);
+    const modernityFactor = this.calculateModernityFactor(data, isAmb);
 
-    return { token, score: finalScore, data };
+    const ambiguityFactor = this.calculateAmbiguityFactor(token, position, totalTokens, token0FirstnameStrength);
+
+    const finalScore = Math.min(100 * freqScore * lengthScore * positionBonus * purityBonus * modernityFactor * ambiguityFactor, 100);
+
+    return {
+      token,
+      score: finalScore,
+      data,
+      tokenType: isAmb ? 'AMBIGUOUS' : 'PURE_FIRSTNAME',
+    };
   }
 
-  /**
-   * Select best token with ambiguity check
-   */
   private selectBestToken(
-    scores: Array<{ token: string; score: number; data: FirstnameData | null }>,
-  ): { token: string; score: number; data: FirstnameData | null } | null {
-    if (scores.length === 0) return null;
+    scores: Array<{ token: string; score:  number; data: FirstnameData | null; tokenType: string }>,
+  ): { token: string; score: number; data: FirstnameData } | null {
+    const validScores = scores.filter((s) => s.score > 0 && s.data !== null).sort((a, b) => b.score - a.score);
 
-    // Sort by score descending
-    scores.sort((a, b) => b.score - a.score);
+    if (validScores.length === 0) return null;
 
-    const best = scores[0];
-    const secondBest = scores.length > 1 ? scores[1] : null;
+    const best = validScores[0];
+    const secondBest = validScores[1];
 
-    // Double condition: absolute threshold AND ratio check
     if (best.score < 50) return null;
 
-    if (secondBest && best.score < secondBest.score * 1.25) {
-      // Too ambiguous
+    if (secondBest && best.score < secondBest.score * 1.2) {
       return null;
     }
 
-    return best;
+    return { token: best.token, score: best.score, data: best. data!  };
   }
 
-  /**
-   * Extract firstname from email
-   */
+  private extractLocalPart(email: string): string | null {
+    const parts = email.split('@');
+    if (parts.length < 2) return null;
+    return parts[0]. trim().toLowerCase();
+  }
+
+  private tokenize(localPart: string): string[] {
+    const tokens = localPart
+      .split(/[\.\-_\+]/)
+      .map((token) => {
+        token = token.normalize('NFKD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z\-]/g, '');
+        return token;
+      })
+      .filter((token) => {
+        return token.length >= 2 && ! this.BLACKLIST_TOKENS.has(token);
+      });
+
+    return tokens;
+  }
+
+  private calculateAgeConfidence(data: FirstnameData): number {
+    const iqr = (data.ageP75 ??  0) - (data.ageP25 ?? 0);
+    const totalCount = data.totalCount || 0;
+
+    let ageConf = 0.5;
+
+    if (totalCount > 50000) ageConf += 0.2;
+    if (totalCount > 200000) ageConf += 0.1;
+
+    if (iqr && iqr <= 15) {
+      ageConf += 0.2;
+    } else if (iqr && iqr >= 30) {
+      ageConf -= 0.1;
+    }
+
+    return Math.max(0.3, Math.min(0.95, ageConf));
+  }
+
   private async extractFirstname(email: string): Promise<{
     firstName: string | null;
     confidence: number;
     normalizedInput: string | null;
-    debug?: any;
+    debug?:  any;
   }> {
     const localPart = this.extractLocalPart(email);
-
     if (!localPart) {
-      return {
-        firstName: null,
-        confidence: 0,
-        normalizedInput: null,
-      };
+      return { firstName: null, confidence: 0, normalizedInput: null };
     }
 
     const tokens = this.tokenize(localPart);
-
     if (tokens.length === 0) {
-      return {
-        firstName: null,
-        confidence: 0,
-        normalizedInput: localPart,
-      };
+      return { firstName: null, confidence: 0, normalizedInput: localPart };
     }
 
-    // Calculate scores for all tokens
-    const scores: Array<{
-      token: string;
-      score: number;
-      data: FirstnameData | null;
-    }> = [];
+    const token0FirstnameStrength = await this.calculateFirstnameStrength(tokens[0]);
+
+    const scores:  Array<{ token: string; score: number; data: FirstnameData | null; tokenType: string }> = [];
     for (let i = 0; i < tokens.length; i++) {
-      const result = await this.calculateScore(tokens[i], i, tokens.length);
+      const result = await this.calculateScore(tokens[i], i, tokens.length, token0FirstnameStrength);
       scores.push(result);
     }
 
     const bestToken = this.selectBestToken(scores);
 
     if (!bestToken) {
+      const sorted = [... scores].sort((a, b) => b.score - a.score);
+
       return {
         firstName: null,
         confidence: 0,
         normalizedInput: localPart,
         debug: {
-          allScores: scores.map((s) => ({
+          allScores: sorted.map((s) => ({
             token: s.token,
             score: Math.round(s.score),
+            tokenType: s.tokenType,
           })),
+          token0Strength: token0FirstnameStrength. toFixed(2),
         },
       };
     }
 
-    // Capitalize first letter (handle compound names like jean-pierre)
     const capitalize = (str: string) => {
       return str
         .split('-')
-        .map(
-          (part) => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase(),
-        )
+        .map((part) => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
         .join('-');
     };
 
-    const secondBestScore = scores.length > 1 ? scores[1].score : 0;
-    const appliedRatio =
-      secondBestScore > 0
-        ? (bestToken.score / secondBestScore).toFixed(2)
-        : 'N/A';
+    const sorted = [...scores].sort((a, b) => b.score - a.score);
+    const secondBestScore = sorted[1]?.score ??  0;
+    const appliedRatio = secondBestScore > 0 ? (bestToken.score / secondBestScore).toFixed(2) : 'N/A';
 
     return {
-      firstName: capitalize(bestToken.token),
-      confidence: Math.round(bestToken.score),
+      firstName: capitalize(bestToken. token),
+      confidence: Math. round(bestToken.score),
       normalizedInput: localPart,
       debug: {
-        allScores: scores.map((s) => ({
-          token: s.token,
+        allScores: sorted.map((s) => ({
+          token:  s.token,
           score: Math.round(s.score),
+          tokenType: s.tokenType,
         })),
         appliedRatio,
+        token0Strength: token0FirstnameStrength.toFixed(2),
       },
     };
   }
 
-  /**
-   * Deduce civility from gender data
-   */
-  private deduceCivility(data: any): {
+  async enrich(email: string): Promise<{
+    firstName: string | null;
+    firstNameConfidence: number;
     civility: string | null;
-    gender: string | null;
+    gender: 'M' | 'F' | null;
     genderConfidence: number | null;
-  } {
-    const maleCount = data.maleCount || 0;
-    const femaleCount = data.femaleCount || 0;
-    const total = maleCount + femaleCount;
-
-    if (total === 0) {
-      return { civility: null, gender: null, genderConfidence: null };
-    }
-
-    const pMale = maleCount / total;
-    const pFemale = femaleCount / total;
-
-    if (pMale >= 0.85) {
-      return {
-        civility: 'M.',
-        gender: 'M',
-        genderConfidence: pMale,
-      };
-    }
-
-    if (pFemale >= 0.85) {
-      return {
-        civility: 'Mme',
-        gender: 'F',
-        genderConfidence: pFemale,
-      };
-    }
-
-    // Ambiguous (mixed names like Camille, Dominique)
-    return {
-      civility: null,
-      gender: null,
-      genderConfidence: Math.max(pMale, pFemale),
-    };
-  }
-
-  /**
-   * Calculate age confidence
-   */
-  private calculateAgeConfidence(totalCount: number): number {
-    if (totalCount > 100000) return 0.9;
-    if (totalCount > 10000) return 0.75;
-    if (totalCount > 1000) return 0.6;
-    return 0.3;
-  }
-
-  /**
-   * Main enrichment method
-   */
-  async enrich(email: string): Promise<EnrichmentResponseDto> {
+    presumedAge: number | null;
+    presumedAgeRange: { p25: number | null; p50: number | null; p75: number | null } | null;
+    presumedAgeConfidence: number | null;
+    peakDecade: string | null;
+    detectedFrom: string | null;
+    normalizedInput: string | null;
+    warnings: string[];
+    debug?: any;
+  }> {
     const extraction = await this.extractFirstname(email);
 
-    if (!extraction.firstName) {
+    if (!extraction. firstName) {
       return {
         firstName: null,
         firstNameConfidence: 0,
@@ -421,15 +534,13 @@ export class FirstnameEnrichmentService implements OnModuleInit {
         presumedAgeConfidence: null,
         peakDecade: null,
         detectedFrom: null,
-        normalizedInput: null,
+        normalizedInput: extraction.normalizedInput,
         warnings: ['No valid firstname detected'],
+        debug: extraction.debug,
       };
     }
 
-    // Get data from Redis
-    const data = await this.getFirstnameData(
-      extraction.firstName.toLowerCase(),
-    );
+    const data = await this.getFirstnameData(extraction.firstName. toLowerCase());
 
     if (!data) {
       return {
@@ -443,121 +554,175 @@ export class FirstnameEnrichmentService implements OnModuleInit {
         presumedAgeConfidence: null,
         peakDecade: null,
         detectedFrom: 'email_local_part',
-        normalizedInput: extraction.normalizedInput,
-        warnings: ['Firstname detected but no demographic data available'],
+        normalizedInput:  extraction.normalizedInput,
+        warnings: ['Firstname detected but no enrichment data available'],
         debug: extraction.debug,
       };
     }
 
-    const civilityInfo = this.deduceCivility(data);
-    const ageConfidence = this.calculateAgeConfidence(data.totalCount);
+    const gender = data.genderRatio >= 0.85 ? data.dominantGender : null;
+    const civility = gender === 'M' ? 'M.' : gender === 'F' ? 'Mme' : null;
+    const genderConfidence = gender ?  data.genderRatio : null;
 
-    const warnings = [
-      'Âge basé sur naissances INSEE, pas population vivante actuelle',
-    ];
-
-    if (data.totalCount < 1000) {
-      warnings.push('Prénom rare, scoring avec confiance réduite');
-    }
+    const ageConfidence = this.calculateAgeConfidence(data);
 
     return {
       firstName: extraction.firstName,
-      firstNameConfidence: extraction.confidence,
-      civility: civilityInfo.civility,
-      gender: civilityInfo.gender,
-      genderConfidence: civilityInfo.genderConfidence,
+      firstNameConfidence:  extraction.confidence,
+      civility,
+      gender,
+      genderConfidence,
       presumedAge: data.estimatedAge,
-      presumedAgeRange:
-        data.ageP25 && data.ageP50 && data.ageP75
-          ? {
-              p25: data.ageP25,
-              p50: data.ageP50,
-              p75: data.ageP75,
-            }
-          : null,
+      presumedAgeRange:  {
+        p25: data. ageP25,
+        p50: data. ageP50,
+        p75: data.ageP75,
+      },
       presumedAgeConfidence: ageConfidence,
-      peakDecade: data.peakDecade,
+      peakDecade:  data.peakDecade,
       detectedFrom: 'email_local_part',
       normalizedInput: extraction.normalizedInput,
-      warnings,
-      debug: extraction.debug,
+      warnings: ['Âge basé sur naissances INSEE, pas population vivante actuelle'],
+      debug: extraction. debug,
     };
   }
 
-  /**
-   * Import batch of firstnames
-   */
-  async importBatch(
-    firstnames: CreateFirstnameDto[],
-  ): Promise<{ imported: number; skipped: number }> {
+  async importBatch(firstnames: any[]): Promise<{ imported: number; skipped: number }> {
     let imported = 0;
     let skipped = 0;
 
-    for (const dto of firstnames) {
-      const normalizedFirstname = this.normalize(dto.firstname);
+    try {
+      const entities = firstnames.map((fn) =>
+        this.firstnameRepository.create({
+          firstname: fn.firstname,
+          maleCount: fn.maleCount,
+          femaleCount: fn.femaleCount,
+          totalCount: fn.totalCount,
+          genderRatio: fn. genderRatio,
+          dominantGender: fn.dominantGender,
+          birthYears: fn.birthYears || [],
+          estimatedAge: fn.estimatedAge,
+          ageP25: fn.ageP25,
+          ageP50: fn.ageP50,
+          ageP75: fn.ageP75,
+          peakDecade: fn. peakDecade,
+          source: 'insee',
+        }),
+      );
 
-      const existing = await this.firstnameRepository.findOne({
-        where: { firstname: normalizedFirstname },
-      });
+      const result = await this.firstnameRepository.upsert(entities, ['firstname']);
+      imported = result.identifiers.length;
 
-      if (existing) {
-        skipped++;
-        continue;
+      for (const fn of firstnames) {
+        const data:  FirstnameData = {
+          maleCount: fn.maleCount,
+          femaleCount: fn.femaleCount,
+          totalCount: fn.totalCount,
+          genderRatio: fn. genderRatio,
+          dominantGender: fn.dominantGender,
+          estimatedAge: fn.estimatedAge,
+          ageP25: fn.ageP25,
+          ageP50: fn. ageP50,
+          ageP75: fn.ageP75,
+          peakDecade: fn.peakDecade,
+        };
+
+        await this.redisClient.set(`${this. REDIS_PREFIX}${fn.firstname}`, JSON.stringify(data), 'EX', this.REDIS_TTL);
       }
+    } catch (error) {
+      this.logger.error('Error importing batch:', error);
 
-      const entity = this.firstnameRepository.create({
-        firstname: normalizedFirstname,
-        maleCount: dto.maleCount,
-        femaleCount: dto.femaleCount,
-        totalCount: dto.totalCount,
-        genderRatio: dto.genderRatio,
-        dominantGender: dto.dominantGender,
-        birthYears: dto.birthYears,
-        estimatedAge: dto.estimatedAge,
-        ageP25: dto.ageP25,
-        ageP50: dto.ageP50,
-        ageP75: dto.ageP75,
-        peakDecade: dto.peakDecade,
-      });
+      for (const fn of firstnames) {
+        try {
+          const existing = await this.firstnameRepository.findOne({
+            where: { firstname: fn.firstname },
+          });
 
-      await this.firstnameRepository.save(entity);
+          if (existing) {
+            skipped++;
+            continue;
+          }
 
-      // Add to Redis
-      const key = `${this.REDIS_PREFIX}${normalizedFirstname}`;
-      const data = {
-        maleCount: dto.maleCount,
-        femaleCount: dto.femaleCount,
-        totalCount: dto.totalCount,
-        genderRatio: dto.genderRatio,
-        dominantGender: dto.dominantGender,
-        estimatedAge: dto.estimatedAge,
-        ageP25: dto.ageP25,
-        ageP50: dto.ageP50,
-        ageP75: dto.ageP75,
-        peakDecade: dto.peakDecade,
-      };
-      await this.redisClient.set(key, JSON.stringify(data));
+          const entity = this.firstnameRepository. create({
+            firstname: fn. firstname,
+            maleCount:  fn.maleCount,
+            femaleCount: fn.femaleCount,
+            totalCount: fn.totalCount,
+            genderRatio: fn.genderRatio,
+            dominantGender: fn.dominantGender,
+            birthYears: fn. birthYears || [],
+            estimatedAge: fn.estimatedAge,
+            ageP25: fn.ageP25,
+            ageP50: fn. ageP50,
+            ageP75: fn.ageP75,
+            peakDecade: fn.peakDecade,
+            source: 'insee',
+          });
 
-      imported++;
+          await this.firstnameRepository.save(entity);
+
+          const data: FirstnameData = {
+            maleCount: fn. maleCount,
+            femaleCount: fn.femaleCount,
+            totalCount: fn.totalCount,
+            genderRatio: fn.genderRatio,
+            dominantGender: fn.dominantGender,
+            estimatedAge: fn.estimatedAge,
+            ageP25: fn.ageP25,
+            ageP50: fn.ageP50,
+            ageP75: fn. ageP75,
+            peakDecade: fn.peakDecade,
+          };
+
+          await this.redisClient.set(`${this.REDIS_PREFIX}${fn.firstname}`, JSON.stringify(data), 'EX', this.REDIS_TTL);
+
+          imported++;
+        } catch (err) {
+          this.logger. error(`Error importing firstname ${fn.firstname}:`, err);
+          skipped++;
+        }
+      }
     }
 
     return { imported, skipped };
   }
 
-  /**
-   * Get top 100 firstnames by frequency
-   */
-  async findAll(): Promise<InseeFirstname[]> {
-    return this.firstnameRepository.find({
-      order: { totalCount: 'DESC' },
-      take: 100,
-    });
-  }
+async getStats(): Promise<{
+  totalFirstnames:  number;
+  source: string;
+  dataset: string;
+  lastUpdate: Date;
+}> {
+  const count = await this.firstnameRepository.count();
+  
+  // ✅ FIX : Utiliser find() avec take: 1
+  const latest = await this.firstnameRepository.find({
+    order: { createdAt: 'DESC' },
+    take: 1,
+  });
+  
+  return {
+    totalFirstnames:  count,
+    source: 'insee',
+    dataset: 'nat2022',
+    lastUpdate: latest[0]?.createdAt || new Date(),
+  };
+}
 
-  /**
-   * Count total firstnames in database
-   */
-  async count(): Promise<number> {
-    return this.firstnameRepository.count();
+  async getTop(limit: number = 100): Promise<any[]> {
+    const firstnames = await this.firstnameRepository.find({
+      take: limit,
+      order: { totalCount: 'DESC' },
+    });
+
+    return firstnames. map((fn) => ({
+      firstname: fn.firstname,
+      totalCount: fn.totalCount,
+      maleCount: fn.maleCount,
+      femaleCount: fn.femaleCount,
+      dominantGender: fn.dominantGender,
+      estimatedAge: fn.estimatedAge,
+      peakDecade: fn.peakDecade,
+    }));
   }
 }

@@ -1,23 +1,16 @@
-import {
-  IsString,
-  IsNotEmpty,
-  IsNumber,
-  IsOptional,
-  IsArray,
-} from 'class-validator';
+import { IsString, IsInt, IsNumber, IsArray, IsOptional } from 'class-validator';
 
 export class CreateFirstnameDto {
   @IsString()
-  @IsNotEmpty()
   firstname: string;
 
-  @IsNumber()
+  @IsInt()
   maleCount: number;
 
-  @IsNumber()
+  @IsInt()
   femaleCount: number;
 
-  @IsNumber()
+  @IsInt()
   totalCount: number;
 
   @IsNumber()
@@ -25,28 +18,33 @@ export class CreateFirstnameDto {
 
   @IsString()
   @IsOptional()
-  dominantGender?: string;
+  dominantGender:  string | null;
 
   @IsArray()
-  birthYears: any[];
+  birthYears: {
+    year: number;
+    maleCount: number;
+    femaleCount: number;
+    totalCount: number;
+  }[];
 
-  @IsNumber()
+  @IsInt()
   @IsOptional()
-  estimatedAge?: number;
+  estimatedAge: number | null;
 
-  @IsNumber()
+  @IsInt()
   @IsOptional()
-  ageP25?: number;
+  ageP25: number | null;
 
-  @IsNumber()
+  @IsInt()
   @IsOptional()
-  ageP50?: number;
+  ageP50: number | null;
 
-  @IsNumber()
+  @IsInt()
   @IsOptional()
-  ageP75?: number;
+  ageP75: number | null;
 
   @IsString()
   @IsOptional()
-  peakDecade?: string;
+  peakDecade: string | null;
 }
