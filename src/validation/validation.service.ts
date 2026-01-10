@@ -7,6 +7,7 @@ import { WhitelistService } from '../whitelist/whitelist.service';
 import { BlacklistService } from '../blacklist/blacklist.service';
 import { ProfanityService } from '../profanity/profanity.service';
 import { RandomDetectionService } from '../random-detection/random-detection.service';
+import { FirstnameEnrichmentService } from '../firstname-enrichment/firstname-enrichment.service';
 
 const resolveMx = promisify(dns.resolveMx);
 const resolve4 = promisify(dns.resolve4);
@@ -138,6 +139,7 @@ export class ValidationService {
     private readonly blacklistService: BlacklistService,
     private readonly profanityService: ProfanityService,
     private readonly randomDetectionService: RandomDetectionService,
+    private readonly firstnameEnrichmentService: FirstnameEnrichmentService,
   ) {}
 
   // =========================
@@ -647,6 +649,10 @@ export class ValidationService {
   async validateEmail(email: string): Promise<any> {
     const startTime = Date.now();
 
+    // Enrichissement prénom (ne modifie PAS le score)
+    const firstnameEnrichment =
+      await this.firstnameEnrichmentService.enrich(email);
+
     const typoDomain = this.suggestTypoDomain(email);
 
     const syntaxResult = this.validateSyntax(email);
@@ -661,6 +667,15 @@ export class ValidationService {
         risk: {
           profanity: 'none',
           overall: 'high',
+        },
+        enrichment: {
+          firstName: firstnameEnrichment.firstName,
+          civility: firstnameEnrichment.civility,
+          presumedAge: firstnameEnrichment.presumedAge,
+          presumedAgeRange: firstnameEnrichment.presumedAgeRange,
+          firstNameConfidence: firstnameEnrichment.firstNameConfidence,
+          genderConfidence: firstnameEnrichment.genderConfidence,
+          presumedAgeConfidence: firstnameEnrichment.presumedAgeConfidence,
         },
         details: {
           syntax: syntaxResult,
@@ -681,6 +696,15 @@ export class ValidationService {
         risk: {
           profanity: 'none',
           overall: 'none',
+        },
+        enrichment: {
+          firstName: firstnameEnrichment.firstName,
+          civility: firstnameEnrichment.civility,
+          presumedAge: firstnameEnrichment.presumedAge,
+          presumedAgeRange: firstnameEnrichment.presumedAgeRange,
+          firstNameConfidence: firstnameEnrichment.firstNameConfidence,
+          genderConfidence: firstnameEnrichment.genderConfidence,
+          presumedAgeConfidence: firstnameEnrichment.presumedAgeConfidence,
         },
         details: {
           syntax: syntaxResult,
@@ -707,6 +731,15 @@ export class ValidationService {
           profanity: 'none',
           overall: 'high',
         },
+        enrichment: {
+          firstName: firstnameEnrichment.firstName,
+          civility: firstnameEnrichment.civility,
+          presumedAge: firstnameEnrichment.presumedAge,
+          presumedAgeRange: firstnameEnrichment.presumedAgeRange,
+          firstNameConfidence: firstnameEnrichment.firstNameConfidence,
+          genderConfidence: firstnameEnrichment.genderConfidence,
+          presumedAgeConfidence: firstnameEnrichment.presumedAgeConfidence,
+        },
         details: {
           syntax: syntaxResult,
           typoDomain,
@@ -732,6 +765,15 @@ export class ValidationService {
         risk: {
           profanity: 'none',
           overall: 'high',
+        },
+        enrichment: {
+          firstName: firstnameEnrichment.firstName,
+          civility: firstnameEnrichment.civility,
+          presumedAge: firstnameEnrichment.presumedAge,
+          presumedAgeRange: firstnameEnrichment.presumedAgeRange,
+          firstNameConfidence: firstnameEnrichment.firstNameConfidence,
+          genderConfidence: firstnameEnrichment.genderConfidence,
+          presumedAgeConfidence: firstnameEnrichment.presumedAgeConfidence,
         },
         details: {
           syntax: syntaxResult,
@@ -816,6 +858,15 @@ export class ValidationService {
       risk: {
         profanity: profanityRisk,
         overall: overallRisk,
+      },
+      enrichment: {
+        firstName: firstnameEnrichment.firstName,
+        civility: firstnameEnrichment.civility,
+        presumedAge: firstnameEnrichment.presumedAge,
+        presumedAgeRange: firstnameEnrichment.presumedAgeRange,
+        firstNameConfidence: firstnameEnrichment.firstNameConfidence,
+        genderConfidence: firstnameEnrichment.genderConfidence,
+        presumedAgeConfidence: firstnameEnrichment.presumedAgeConfidence,
       },
       details: {
         syntax: syntaxResult,

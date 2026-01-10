@@ -7,6 +7,7 @@ import { WhitelistModule } from '../whitelist/whitelist.module';
 import { BlacklistModule } from '../blacklist/blacklist.module';
 import { ProfanityModule } from '../profanity/profanity.module';
 import { RandomDetectionModule } from '../random-detection/random-detection.module';
+import { FirstnameEnrichmentModule } from '../firstname-enrichment/firstname-enrichment.module';
 
 @Module({
   imports: [
@@ -16,6 +17,7 @@ import { RandomDetectionModule } from '../random-detection/random-detection.modu
     BlacklistModule,
     ProfanityModule,
     RandomDetectionModule,
+    FirstnameEnrichmentModule,
   ],
   controllers: [ValidationController],
   providers: [ValidationService],
