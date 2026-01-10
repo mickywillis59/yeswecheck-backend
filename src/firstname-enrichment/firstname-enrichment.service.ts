@@ -115,11 +115,11 @@ export class FirstnameEnrichmentService implements OnModuleInit {
     // Normalize
     local = this.normalize(local);
     
-    // Convert separators to dots
-    local = local.replace(/[_\-+]/g, '.');
+    // Convert separators to dots (but NOT hyphens - they're for compound names)
+    local = local.replace(/[_+]/g, '.');
     
-    // Remove non-alphanumeric except dots
-    local = local.replace(/[^a-z0-9.]/g, '');
+    // Remove non-alphanumeric except dots and hyphens
+    local = local.replace(/[^a-z0-9.\-]/g, '');
     
     return local;
   }
@@ -260,7 +260,7 @@ export class FirstnameEnrichmentService implements OnModuleInit {
     }
 
     // Calculate scores for all tokens
-    const scores = [];
+    const scores: Array<{ token: string; score: number; data: any }> = [];
     for (let i = 0; i < tokens.length; i++) {
       const result = await this.calculateScore(tokens[i], i, tokens.length);
       scores.push(result);
