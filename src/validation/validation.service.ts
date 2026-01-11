@@ -8,6 +8,8 @@ import { BlacklistService } from '../blacklist/blacklist.service';
 import { ProfanityService } from '../profanity/profanity.service';
 import { RandomDetectionService } from '../random-detection/random-detection.service';
 import { FirstnameEnrichmentService } from '../firstname-enrichment/firstname-enrichment.service';
+import { SmtpVerificationService } from '../smtp-verification/smtp-verification.service';
+import { SmtpVerificationResult } from '../smtp-verification/smtp-verification.types';
 
 const resolveMx = promisify(dns.resolveMx);
 const resolve4 = promisify(dns.resolve4);
@@ -40,79 +42,46 @@ type TypoDomainSuggestion =
     };
 
 type DomainEntry = {
-  base: string; // ex: "gmail"
-  tld: string; // ex: ".com"
-  popularity: number; // 0-100, plus haut = plus populaire
+  base: string;
+  tld: string;
+  popularity: number;
 };
 
-/**
- * Liste unifiée des domaines email populaires
- * Triée par popularité décroissante dans chaque catégorie
- */
-const POPULAR_DOMAINS: DomainEntry[] = [
-  // ========== GMAIL ==========
-  { base: 'gmail', tld: '. com', popularity: 100 },
+type Validity = 'valid' | 'invalid' | 'unknown';
 
-  // ========== OUTLOOK ==========
+const POPULAR_DOMAINS: DomainEntry[] = [
+  { base: 'gmail', tld: '.com', popularity: 100 },
   { base: 'outlook', tld: '.com', popularity: 95 },
   { base: 'outlook', tld: '.fr', popularity: 82 },
-
-  // ========== HOTMAIL ==========
-  { base: 'hotmail', tld: '. com', popularity: 88 },
+  { base: 'hotmail', tld: '.com', popularity: 88 },
   { base: 'hotmail', tld: '.fr', popularity: 80 },
-
-  // ========== YAHOO ==========
   { base: 'yahoo', tld: '.com', popularity: 85 },
   { base: 'yahoo', tld: '.fr', popularity: 75 },
-
-  // ========== ORANGE (FAI Français) ==========
   { base: 'orange', tld: '.fr', popularity: 92 },
-  { base: 'wanadoo', tld: '. fr', popularity: 70 },
-
-  // ========== FREE (FAI Français) ==========
+  { base: 'wanadoo', tld: '.fr', popularity: 70 },
   { base: 'free', tld: '.fr', popularity: 88 },
-
-  // ========== SFR (FAI Français) ==========
-  { base: 'sfr', tld: '. fr', popularity: 85 },
-
-  // ========== LA POSTE ==========
+  { base: 'sfr', tld: '.fr', popularity: 85 },
   { base: 'laposte', tld: '.net', popularity: 80 },
-
-  // ========== ICLOUD / APPLE ==========
-  { base: 'icloud', tld: '. com', popularity: 82 },
+  { base: 'icloud', tld: '.com', popularity: 82 },
   { base: 'me', tld: '.com', popularity: 65 },
   { base: 'mac', tld: '.com', popularity: 60 },
-
-  // ========== LIVE / MSN ==========
-  { base: 'live', tld: '. com', popularity: 78 },
+  { base: 'live', tld: '.com', popularity: 78 },
   { base: 'live', tld: '.fr', popularity: 72 },
   { base: 'msn', tld: '.com', popularity: 70 },
-
-  // ========== PROTON ==========
   { base: 'protonmail', tld: '.com', popularity: 75 },
   { base: 'proton', tld: '.me', popularity: 70 },
-
-  // ========== AOL ==========
   { base: 'aol', tld: '.com', popularity: 65 },
-
-  // ========== GMX ==========
   { base: 'gmx', tld: '.fr', popularity: 68 },
   { base: 'gmx', tld: '.de', popularity: 70 },
-  { base: 'gmx', tld: '. com', popularity: 65 },
-
-  // ========== BBOX (Bouygues) ==========
+  { base: 'gmx', tld: '.com', popularity: 65 },
   { base: 'bbox', tld: '.fr', popularity: 75 },
-
-  // ========== ANCIENS FAI FRANÇAIS ==========
   { base: 'club-internet', tld: '.fr', popularity: 60 },
-  { base: 'neuf', tld: '. fr', popularity: 62 },
+  { base: 'neuf', tld: '.fr', popularity: 62 },
   { base: 'numericable', tld: '.fr', popularity: 58 },
   { base: 'aliceadsl', tld: '.fr', popularity: 55 },
   { base: 'voila', tld: '.fr', popularity: 60 },
   { base: 'caramail', tld: '.com', popularity: 50 },
-
-  // ========== AUTRES GLOBAUX ==========
-  { base: 'mail', tld: '. com', popularity: 60 },
+  { base: 'mail', tld: '.com', popularity: 60 },
   { base: 'yandex', tld: '.ru', popularity: 65 },
   { base: 'yandex', tld: '.com', popularity: 58 },
   { base: 'zoho', tld: '.com', popularity: 62 },
@@ -140,6 +109,7 @@ export class ValidationService {
     private readonly profanityService: ProfanityService,
     private readonly randomDetectionService: RandomDetectionService,
     private readonly firstnameEnrichmentService: FirstnameEnrichmentService,
+    private readonly smtpService: SmtpVerificationService,
   ) {}
 
   // =========================
@@ -187,9 +157,6 @@ export class ValidationService {
     return 3;
   }
 
-  /**
-   * Damerau-Levenshtein (optimal string alignment) avec early exit
-   */
   private damerauLevenshtein(a: string, b: string, maxDist: number): number {
     if (a === b) return 0;
     const alen = a.length;
@@ -232,14 +199,10 @@ export class ValidationService {
     return dp[alen][blen];
   }
 
-  /**
-   * Suggestion typo domaine (flag informatif, aucun impact score)
-   */
   private suggestTypoDomain(email: string): TypoDomainSuggestion {
     const domainRaw = this.extractDomainLoosely(email);
     if (!domainRaw) return { detected: false };
 
-    // Garde-fou : éviter les domaines custom avec sous-domaines
     const dotCount = (domainRaw.match(/\./g) || []).length;
     if (dotCount >= 2) return { detected: false };
 
@@ -249,7 +212,6 @@ export class ValidationService {
 
     const maxDist = this.maxDistanceFor(inputBase);
 
-    // 1️⃣ Filtrer par TLD si présent
     let candidates: DomainEntry[] = [];
     let matchedBy: TypoMatchedBy = 'NO_TLD_GUESS';
 
@@ -260,7 +222,6 @@ export class ValidationService {
       );
       matchedBy = 'TLD_MATCH';
 
-      // Fallback : si aucun candidat avec ce TLD, prendre tous
       if (candidates.length === 0) {
         candidates = POPULAR_DOMAINS;
         matchedBy = 'TLD_FALLBACK';
@@ -270,7 +231,6 @@ export class ValidationService {
       matchedBy = 'NO_TLD_GUESS';
     }
 
-    // 2️⃣ Calculer les distances
     const scored: Array<{
       domain: DomainEntry;
       distance: number;
@@ -285,7 +245,6 @@ export class ValidationService {
 
     if (scored.length === 0) return { detected: false };
 
-    // 3️⃣ Tri simple :  distance ASC, puis popularity DESC
     scored.sort((a, b) => {
       if (a.distance !== b.distance) return a.distance - b.distance;
       return b.domain.popularity - a.domain.popularity;
@@ -294,7 +253,6 @@ export class ValidationService {
     const best = scored[0];
     const second = scored[1];
 
-    // Garde-fou ambiguïté : le 2e doit être clairement moins bon
     if (
       second &&
       second.distance === best.distance &&
@@ -303,17 +261,14 @@ export class ValidationService {
       return { detected: false };
     }
 
-    // Si input exact match, pas de suggestion
     const fullDomain = `${best.domain.base}${best.domain.tld}`;
     if (domainRaw.toLowerCase() === fullDomain.toLowerCase()) {
       return { detected: false };
     }
 
-    // 4️⃣ Calcul confiance
     const maxLen = Math.max(inputBase.length, best.domain.base.length);
     let confidence = 1 - best.distance / maxLen;
 
-    // Bonus si TLD match
     if (inputTld && inputTld.toLowerCase() === best.domain.tld.toLowerCase()) {
       confidence += 0.1;
     }
@@ -321,7 +276,6 @@ export class ValidationService {
     confidence = Math.min(1, Math.max(0, confidence));
     confidence = Number(confidence.toFixed(2));
 
-    // Seuil de confiance
     if (confidence < 0.75) return { detected: false };
 
     return {
@@ -643,13 +597,63 @@ export class ValidationService {
   }
 
   // =========================
+  // VALIDITY CALCULATION
+  // =========================
+
+  private calculateValidity(
+    syntaxValid: boolean,
+    dnsValid: boolean,
+    smtpResult: SmtpVerificationResult | null,
+  ): { validity: Validity; isValid: boolean | null } {
+    if (!syntaxValid) {
+      return { validity: 'invalid', isValid: false };
+    }
+
+    if (!dnsValid) {
+      return { validity: 'invalid', isValid: false };
+    }
+
+    // Pas de SMTP ou skipped → valid (delivery technique OK)
+    if (!smtpResult || smtpResult.status === 'skipped') {
+      return { validity: 'valid', isValid: true };
+    }
+
+    if (smtpResult.status === 'pass') {
+      return { validity: 'valid', isValid: true };
+    }
+
+    // Branch explicite pour fail
+    if (smtpResult.status === 'fail') {
+      // MAILBOX_NOT_FOUND → invalid
+      if (smtpResult.reasonCategory === 'MAILBOX_NOT_FOUND') {
+        return { validity: 'invalid', isValid: false };
+      }
+      // Autres fail (edge cases, bugs de classification) → unknown (safe)
+      return { validity: 'unknown', isValid: null };
+    }
+
+    // SMTP unknown
+    if (smtpResult.status === 'unknown') {
+      return { validity: 'unknown', isValid: null };
+    }
+
+    // Fallback safe
+    return { validity: 'unknown', isValid: null };
+  }
+
+  // =========================
   // VALIDATION COMPLÈTE
   // =========================
 
-  async validateEmail(email: string): Promise<any> {
+  async validateEmail(
+    email: string,
+    options?: {
+      smtp?: boolean;
+      smtpTimeout?: number;
+    },
+  ): Promise<any> {
     const startTime = Date.now();
 
-    // Enrichissement prénom (ne modifie PAS le score)
     const firstnameEnrichment =
       await this.firstnameEnrichmentService.enrich(email);
 
@@ -661,6 +665,7 @@ export class ValidationService {
       return {
         email,
         isValid: false,
+        validity: 'invalid',
         score: syntaxResult.score,
         reason: syntaxResult.message,
         executionTime: `${Date.now() - startTime}ms`,
@@ -690,6 +695,7 @@ export class ValidationService {
       return {
         email,
         isValid: true,
+        validity: 'valid',
         score: 100,
         reason: 'Email is whitelisted (trusted)',
         executionTime: `${Date.now() - startTime}ms`,
@@ -724,6 +730,7 @@ export class ValidationService {
       return {
         email,
         isValid: false,
+        validity: 'invalid',
         score: 0,
         reason: 'Email is blacklisted',
         executionTime: `${Date.now() - startTime}ms`,
@@ -759,6 +766,7 @@ export class ValidationService {
       return {
         email,
         isValid: false,
+        validity: 'invalid',
         score: dnsResult.score,
         reason: dnsResult.message,
         executionTime: `${Date.now() - startTime}ms`,
@@ -790,6 +798,64 @@ export class ValidationService {
       await this.disposableEmailService.isDisposable(email);
     const roleCheck = await this.roleAccountService.isRoleAccount(email);
     const randomCheck = await this.randomDetectionService.checkEmail(email);
+
+    // SMTP Verification
+    let smtpCheck: SmtpVerificationResult | null = null;
+
+    if (options?.smtp) {
+      if (
+        dnsResult.reasonCode === 'MX_FOUND' &&
+        dnsResult.mxRecords &&
+        dnsResult.mxRecords.length > 0
+      ) {
+        // Cas normal : MX trouvés, on lance SMTP
+        smtpCheck = await this.smtpService.verify(email, dnsResult.mxRecords, {
+          smtpEnabled: true,
+          timeoutOverride: options.smtpTimeout,
+          isDisposable: disposableCheck.isDisposable,
+        });
+      } else if (dnsResult.reasonCode === 'TIMEOUT') {
+        // Cas DNS timeout → SMTP skipped avec raison claire
+        smtpCheck = {
+          enabled: true,
+          status: 'skipped',
+          exists: null,
+          responseCode: null,
+          enhancedCode: null,
+          reasonCategory: 'NETWORK',
+          reasonCode: 'DNS_TIMEOUT',
+          stage: null,
+          latencyMs: null,
+          timeoutMs: options.smtpTimeout ?? 1200,
+          message: 'SMTP skipped: DNS timeout, cannot determine MX records',
+          mxHost: null,
+          skipReason: 'NOT_ELIGIBLE',
+        };
+      } else {
+        // Cas pas de MX (A_FALLBACK, NO_MX_NO_A, NULL_MX)
+        smtpCheck = {
+          enabled: true,
+          status: 'skipped',
+          exists: null,
+          responseCode: null,
+          enhancedCode: null,
+          reasonCategory: 'NO_MX',
+          reasonCode: 'NO_MX_RECORDS',
+          stage: null,
+          latencyMs: null,
+          timeoutMs: options.smtpTimeout ?? 1200,
+          message: 'SMTP skipped: no MX records available for verification',
+          mxHost: null,
+          skipReason: 'NO_MX_RECORDS',
+        };
+      }
+    }
+
+    const { validity, isValid: validityIsValid } = this.calculateValidity(
+      syntaxResult.isValid,
+      dnsResult.isValid,
+      smtpCheck,
+    );
 
     let finalScore = 100;
 
@@ -828,6 +894,19 @@ export class ValidationService {
       }
     }
 
+    // Pénalité SMTP uniquement si status=unknown (pas skipped)
+    if (smtpCheck && smtpCheck.status === 'unknown') {
+      if (smtpCheck.reasonCategory === 'TEMPORARY') {
+        finalScore -= 20;
+      } else if (smtpCheck.reasonCategory === 'POLICY') {
+        finalScore -= 15;
+      } else if (smtpCheck.reasonCategory === 'NETWORK') {
+        finalScore -= 25;
+      } else {
+        finalScore -= 30;
+      }
+    }
+
     finalScore = Math.max(0, finalScore);
 
     const dnsMultiplier = this.getDnsMultiplier(
@@ -835,6 +914,15 @@ export class ValidationService {
       dnsResult.dnsTimeout,
     );
     finalScore = Math.max(0, Math.round(finalScore * dnsMultiplier));
+
+    // MAILBOX_NOT_FOUND → score plafonné à 10
+    if (
+      smtpCheck &&
+      smtpCheck.status === 'fail' &&
+      smtpCheck.reasonCategory === 'MAILBOX_NOT_FOUND'
+    ) {
+      finalScore = Math.min(finalScore, 10);
+    }
 
     const overallRisk = this.calculateOverallRisk(
       finalScore,
@@ -846,13 +934,15 @@ export class ValidationService {
 
     return {
       email,
-      isValid: true,
+      isValid: validityIsValid,
+      validity,
       score: finalScore,
       reason: this.buildReasonMessage(
         profanityCheck.hasProfanity,
         disposableCheck.isDisposable,
         roleCheck.isRole,
         randomCheck.isRandom,
+        smtpCheck,
       ),
       executionTime: `${Date.now() - startTime}ms`,
       risk: {
@@ -882,7 +972,7 @@ export class ValidationService {
           risk: profanityRisk,
           penalty: profanityPenalty,
           message: profanityCheck.hasProfanity
-            ? '⚠️ This email contains potentially inappropriate language.  Could be legitimate (real name) or intentional.'
+            ? '⚠️ This email contains potentially inappropriate language. Could be legitimate (real name) or intentional.'
             : 'No inappropriate language detected',
         },
         disposable: {
@@ -903,6 +993,7 @@ export class ValidationService {
             ? '⚠️ Email local part appears to contain random/generated characters'
             : 'Email local part appears normal',
         },
+        ...(smtpCheck && { smtp: smtpCheck }),
       },
     };
   }
@@ -912,6 +1003,7 @@ export class ValidationService {
     isDisposable: boolean,
     isRole: boolean,
     isRandom: boolean,
+    smtpCheck: SmtpVerificationResult | null,
   ): string {
     const flags: string[] = [];
 
@@ -920,11 +1012,19 @@ export class ValidationService {
     if (isRole) flags.push('role account');
     if (isRandom) flags.push('random characters detected');
 
+    if (smtpCheck) {
+      if (smtpCheck.status === 'fail') {
+        flags.push('mailbox not found (SMTP)');
+      } else if (smtpCheck.status === 'unknown') {
+        flags.push(`SMTP inconclusive (${smtpCheck.reasonCategory})`);
+      }
+    }
+
     if (flags.length === 0) {
       return 'Email is valid with high quality';
     }
 
-    return `Email is valid but has warnings: ${flags.join(', ')}`;
+    return `Email validation completed with notes: ${flags.join(', ')}`;
   }
 
   private calculateOverallRisk(

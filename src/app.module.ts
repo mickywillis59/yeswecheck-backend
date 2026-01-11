@@ -10,6 +10,7 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { RandomDetectionModule } from './random-detection/random-detection.module';
 import { FirstnameEnrichmentModule } from './firstname-enrichment/firstname-enrichment.module';
+import { SmtpVerificationModule } from './smtp-verification/smtp-verification.module'; // ✅ AJOUT
 
 @Module({
   imports: [
@@ -25,6 +26,7 @@ import { FirstnameEnrichmentModule } from './firstname-enrichment/firstname-enri
     DisposableEmailModule,
     RandomDetectionModule,
     FirstnameEnrichmentModule,
+    SmtpVerificationModule, // ✅ AJOUT
   ],
   controllers: [AppController],
   providers: [AppService],
